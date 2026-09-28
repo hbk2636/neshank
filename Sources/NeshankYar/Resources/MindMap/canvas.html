@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="fa" data-theme="dark" data-dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>طراحی نقشه ذهنی</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: var(--bg); color: var(--fg);
+               font-family: "Vazirmatn", "SF Arabic", "Geeza Pro", -apple-system, system-ui, sans-serif; }
+  :root, html[data-theme="light"] {
+    --bg: #f5f6f8; --fg: #1c1e24; --muted: #5d6470;
+    --panel: rgba(0,0,0,.05); --accent: #2f6fed;
+    --node-bg: #ffffff; --node-text: #1c1e24; --root-bg: #2f6fed; --root-text: #ffffff;
+  }
+  html[data-theme="dark"] {
+    --bg: #1b1e26; --fg: #e8eaf0; --muted: #9aa3b2;
+    --panel: rgba(255,255,255,.06); --accent: #6ea8fe;
+    --node-bg: #262b38; --node-text: #e8eaf0; --root-bg: #31435f; --root-text: #ffffff;
+  }
+  html[data-theme="forest"] {
+    --bg: #16211b; --fg: #eef4ea; --muted: #9db3a1;
+    --panel: rgba(255,255,255,.06); --accent: #7fb069;
+    --node-bg: #22332a; --node-text: #eef4ea; --root-bg: #2c4a35; --root-text: #ffffff;
+  }
+  html[data-theme="ocean"] {
+    --bg: #131f31; --fg: #e9f2ff; --muted: #93a9c9;
+    --panel: rgba(255,255,255,.06); --accent: #6ea8fe;
+    --node-bg: #1f3350; --node-text: #e9f2ff; --root-bg: #274c77; --root-text: #ffffff;
+  }
+  html[data-theme="sunset"] {
+    --bg: #241721; --fg: #f9ece4; --muted: #c9a29b;
+    --panel: rgba(255,255,255,.06); --accent: #f4978e;
+    --node-bg: #33222b; --node-text: #f9ece4; --root-bg: #5f2f3f; --root-text: #ffffff;
+  }
+  html[data-theme="lavender"] {
+    --bg: #1e1a2e; --fg: #ece7f8; --muted: #a79fc4;
+    --panel: rgba(255,255,255,.06); --accent: #b39ddb;
+    --node-bg: #2b2440; --node-text: #ece7f8; --root-bg: #3d2f5c; --root-text: #ffffff;
+  }
+  html[data-theme="mono"] {
+    --bg: #191a1c; --fg: #e6e6e6; --muted: #9b9b9b;
+    --panel: rgba(255,255,255,.06); --accent: #c7c7c7;
+    --node-bg: #26272a; --node-text: #e6e6e6; --root-bg: #3a3b3f; --root-text: #ffffff;
+  }
+  html[data-theme="sand"] {
+    --bg: #221c14; --fg: #f3ead9; --muted: #bda98a;
+    --panel: rgba(255,255,255,.06); --accent: #d9a95f;
+    --node-bg: #332a1d; --node-text: #f3ead9; --root-bg: #4d3d24; --root-text: #ffffff;
+  }
+  html[data-theme="sakura"] {
+    --bg: #fdf0f4; --fg: #402a35; --muted: #977686;
+    --panel: rgba(0,0,0,.05); --accent: #e56b8c;
+    --node-bg: #ffffff; --node-text: #402a35; --root-bg: #d94f75; --root-text: #ffffff;
+  }
+  html[data-theme="mint"] {
+    --bg: #eef7f1; --fg: #173028; --muted: #5f7d70;
+    --panel: rgba(0,0,0,.05); --accent: #1f9e78;
+    --node-bg: #ffffff; --node-text: #173028; --root-bg: #1f9e78; --root-text: #ffffff;
+  }
+
+  #viewport { position: absolute; inset: 0; overflow: hidden; cursor: grab; touch-action: none; }
+  #viewport.panning { cursor: grabbing; }
+  #world { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  #wires { position: absolute; left: 0; top: 0; overflow: visible; pointer-events: none; }
+  #nodes { position: absolute; left: 0; top: 0; }
+
+  /* جهت متن فقط روی کارت گره‌ها — نه روی بوم (مختصات بوم همیشه LTR می‌ماند) */
+  html[data-dir="rtl"] .card { direction: rtl; text-align: right; }
+  html[data-dir="ltr"] .card { direction: ltr; text-align: left; }
+
+  .node { position: absolute; left: 0; top: 0; }
+  .card {
+    width: max-content; max-width: 230px; min-width: 64px;
+    background: var(--node-bg); color: var(--node-text);
+    border: 1.5px solid var(--br, var(--accent)); border-radius: 10px;
+    padding: 7px 12px; font-size: 13px; line-height: 1.7;
+    box-shadow: 0 2px 10px rgba(0,0,0,.25);
+    cursor: grab; user-select: none; -webkit-user-select: none;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .node.root .card {
+    background: var(--root-bg); color: var(--root-text);
+    font-size: 14px; font-weight: 700; padding: 9px 16px; border-radius: 12px;
+  }
+  .node.selected .card { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card:active { cursor: grabbing; }
+  .txt { white-space: pre-wrap; overflow-wrap: break-word; flex: 1; outline: none; }
+  .txt[contenteditable="true"] { cursor: text; user-select: text; -webkit-user-select: text; }
+  .tgl {
+    flex: none; width: 20px; height: 20px; border-radius: 50%;
+    border: 1px solid var(--muted); background: transparent; color: var(--muted);
+    font-size: 12px; line-height: 1; cursor: pointer; padding: 0;
+  }
+  .tgl:hover { color: var(--fg); border-color: var(--fg); }
+  .node.hidden { display: none; }
+
+  .node.hit .card { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .node.dim { opacity: .35; }
+
+  #searchbar { position: absolute; top: 10px; inset-inline-end: 12px; z-index: 20;
+               display: none; align-items: center; gap: 6px;
+               background: var(--panel); border: 1px solid rgba(128,128,128,.35);
+               border-radius: 8px; padding: 5px 8px; backdrop-filter: blur(8px); }
+  #searchbar.on { display: flex; }
+  #searchInput { background: transparent; border: 0; outline: 0; color: var(--fg);
+                 width: 190px; font: 13px/1.4 inherit; }
+  #searchCount { font-size: 11px; color: var(--muted); min-width: 34px; text-align: center; }
+  button.sbtn { background: transparent; border: 0; color: var(--muted); cursor: pointer;
+                font-size: 14px; padding: 2px 5px; border-radius: 5px; }
+  button.sbtn:hover { background: rgba(128,128,128,.2); color: var(--fg); }
+
+  #hint { position: absolute; inset-inline-start: 12px; bottom: 12px; z-index: 10;
+          font-size: 11px; color: var(--muted); background: var(--panel);
+          padding: 4px 8px; border-radius: 6px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="world">
+    <svg id="wires"></svg>
+    <div id="nodes"></div>
+  </div>
+</div>
+<div id="searchbar">
+  <input id="searchInput" type="text" placeholder="جستجو در گره‌ها…" />
+  <span id="searchCount"></span>
+  <button class="sbtn" id="searchPrev" title="قبلی">▲</button>
+  <button class="sbtn" id="searchNext" title="بعدی">▼</button>
+  <button class="sbtn" id="searchClose" title="بستن">✕</button>
+</div>
+<div id="hint">درگ گره: جابه‌جایی آزاد · درگ بوم: پن · Ctrl/⌘ + چرخ: زوم · دابل‌کلیک: ویرایش متن · کلیک دکمهٔ گره: جمع/باز</div>
+
+<script>
+/* ---------- بومی‌سازی رابط صفحهٔ رندر (زبان UI از سمت Swift ست می‌شود) ---------- */
+const I18N = {
+  en: {
+    title: 'Mind Map Designer',
+    searchPlaceholder: 'Search in nodes…',
+    prev: 'Previous', next: 'Next', close: 'Close',
+    hint: 'Drag node: move freely · Drag canvas: pan · Ctrl/⌘ + wheel: zoom · Double-click: edit text · Click node button: collapse/expand',
+    expandBranch: 'Expand branch', collapseBranch: 'Collapse branch',
+    newNode: 'New node',
+    addChild: 'Add child', addSibling: 'Add sibling', editText: 'Edit text',
+    deleteNode: 'Delete node (with subtree)',
+    emptyMap: 'The map data is empty',
+    zero: '0'
+  },
+  fa: {
+    title: 'طراحی نقشه ذهنی',
+    searchPlaceholder: 'جستجو در گره‌ها…',
+    prev: 'قبلی', next: 'بعدی', close: 'بستن',
+    hint: 'درگ گره: جابه‌جایی آزاد · درگ بوم: پن · Ctrl/⌘ + چرخ: زوم · دابل‌کلیک: ویرایش متن · کلیک دکمهٔ گره: جمع/باز',
+    expandBranch: 'بازکردن شاخه', collapseBranch: 'بستن شاخه',
+    newNode: 'گره تازه',
+    addChild: 'افزودن فرزند', addSibling: 'افزودن خواهر/برادر', editText: 'ویرایش متن',
+    deleteNode: 'حذف گره (با زیرشاخه‌ها)',
+    emptyMap: 'دادهٔ نقشه خالی است',
+    zero: '۰'
+  },
+  ru: {
+    title: 'Конструктор интеллект-карт',
+    searchPlaceholder: 'Поиск по узлам…',
+    prev: 'Назад', next: 'Вперёд', close: 'Закрыть',
+    hint: 'Перетаскивание узла: свободное перемещение · Перетаскивание фона: панорама · Ctrl/⌘ + колесо: масштаб · Двойной клик: правка текста · Кнопка узла: свернуть/развернуть',
+    expandBranch: 'Развернуть ветвь', collapseBranch: 'Свернуть ветвь',
+    newNode: 'Новый узел',
+    addChild: 'Добавить дочерний узел', addSibling: 'Добавить узел того же уровня', editText: 'Изменить текст',
+    deleteNode: 'Удалить узел (с поддеревом)',
+    emptyMap: 'Данные карты пусты',
+    zero: '0'
+  },
+  zh: {
+    title: '思维导图设计器',
+    searchPlaceholder: '在节点中搜索…',
+    prev: '上一个', next: '下一个', close: '关闭',
+    hint: '拖动节点：自由移动 · 拖动画布：平移 · Ctrl/⌘ + 滚轮：缩放 · 双击：编辑文本 · 点击节点按钮：折叠/展开',
+    expandBranch: '展开分支', collapseBranch: '折叠分支',
+    newNode: '新节点',
+    addChild: '添加子节点', addSibling: '添加同级节点', editText: '编辑文本',
+    deleteNode: '删除节点（含子树）',
+    emptyMap: '导图数据为空',
+    zero: '0'
+  }
+};
+let uiLang = 'fa';
+const T = () => I18N[uiLang] || I18N.fa;
+
+/* اعمال زبان رابط: متن‌های ثابت DOM + عنوان دکمه‌های جمع/باز گره‌ها */
+function applyUILanguage(name) {
+  uiLang = I18N[name] ? name : 'fa';
+  const rtl = (uiLang === 'fa');
+  ctxMenu.dir = rtl ? 'rtl' : 'ltr';
+  document.title = T().title;
+  $('searchInput').placeholder = T().searchPlaceholder;
+  $('searchPrev').title = T().prev;
+  $('searchNext').title = T().next;
+  $('searchClose').title = T().close;
+  $('hint').textContent = T().hint;
+  if ($('searchCount').textContent === '۰' || $('searchCount').textContent === '0') {
+    $('searchCount').textContent = T().zero;
+  }
+  for (const n of nodes.values()) {
+    const b = n.card && n.card.querySelector('.tgl');
+    if (b) b.title = collapsed.has(n.id) ? T().expandBranch : T().collapseBranch;
+  }
+  return uiLang;
+}
+window.setUILanguage = applyUILanguage;
+
+/* بوم آزاد نقشهٔ ذهنی — بدون وابستگی خارجی.
+   هر گره مختصات خودش را دارد و با درگ آزادانه جابه‌جا می‌شود؛ خطوط اتصال همیشه دنبالش می‌آیند. */
+window.__errors = [];
+window.addEventListener('error', function (e) {
+  window.__errors.push(String((e && e.message) || e.error || 'unknown'));
+});
+
+const viewport = document.getElementById('viewport');
+const world = document.getElementById('world');
+const wires = document.getElementById('wires');
+const nodesLayer = document.getElementById('nodes');
+const $ = id => document.getElementById(id);
+
+const X_GAP = 300;     // فاصلهٔ افقی نسل‌ها
+const Y_GAP = 26;      // فاصلهٔ عمودی همسایه‌ها
+const MIN_SCALE = 0.15, MAX_SCALE = 2.5;
+
+const PALETTES = {
+  light: ['#2f6fed', '#0a9396', '#9d4edd', '#e76f51', '#2a9d8f', '#b5651d'],
+  dark: ['#6ea8fe', '#7bdff2', '#b8a6f5', '#7fd8a4', '#f2b879', '#ef8fa8'],
+  forest: ['#7fb069', '#cae7b9', '#5da271', '#e6aa68', '#f4e9d4', '#a3c9a8'],
+  ocean: ['#6ea8fe', '#4cc9f0', '#9ec5ff', '#f4a259', '#7bdff2', '#e9f2ff'],
+  sunset: ['#f4978e', '#f6bd60', '#e8788a', '#f7cdb4', '#c96f4a', '#ffd6a5'],
+  lavender: ['#b39ddb', '#c9a7eb', '#9d7bd8', '#e0c3fc', '#8e6bbf', '#d5b8ff'],
+  mono: ['#c7c7c7', '#a8a8a8', '#8f8f8f', '#d9d9d9', '#767676', '#b5b5b5'],
+  sand: ['#d9a95f', '#c68a3f', '#e8c98a', '#a9752f', '#f2ddad', '#b8935a'],
+  sakura: ['#e56b8c', '#f2a0b8', '#c94f6d', '#f7c6d4', '#a63d5a', '#fbdce4'],
+  mint: ['#1f9e78', '#57c4a3', '#12805f', '#8fdcc4', '#0d6b50', '#b7ecd9'],
+};
+const THEME_NAMES = ['light', 'dark', 'forest', 'ocean',
+                     'sunset', 'lavender', 'mono', 'sand', 'sakura', 'mint'];
+const LAYOUT_NAMES = ['tree', 'org', 'radial', 'outline', 'timeline'];
+let layoutName = 'tree';
+
+let nodes = new Map();   // id -> {id, text, note, parentId, childIds, branch, el, card, txt, x, y, w, h, depth}
+let rootId = null;
+let collapsed = new Set();
+let selectedId = null;
+let themeName = 'dark';
+let dirSign = +1;        // ‎+1 ریشه چپ (پیش‌فرض) / ‎-1 ریشه راست
+let lang = 'fa';
+let meta = {};
+let tx = 0, ty = 0, scale = 1;
+let matches = [], matchIndex = -1;
+
+/* ---------- ساخت داده ---------- */
+
+function sanitize(node, used, out) {
+  if (!node || typeof node !== 'object') return null;
+  let id = String(node.id || '').trim();
+  if (!id || used.has(id)) id = 'n' + Math.random().toString(36).slice(2, 10);
+  used.add(id);
+  const clean = { id, text: String(node.text ?? node.topic ?? '').slice(0, 240),
+                  note: node.note ? String(node.note) : '', parentId: null, childIds: [] };
+  out.set(id, clean);
+  for (const c of (node.children || [])) {
+    const kid = sanitize(c, used, out);
+    if (kid) { kid.parentId = id; clean.childIds.push(kid.id); }
+  }
+  return clean;
+}
+
+function detectLang(text) {
+  const s = String(text || '');
+  let rtl = 0, ltr = 0;
+  for (const ch of s) {
+    const c = ch.codePointAt(0);
+    if ((c >= 0x0600 && c <= 0x06FF) || (c >= 0x0750 && c <= 0x077F) ||
+        (c >= 0x08A0 && c <= 0x08FF) || (c >= 0xFB50 && c <= 0xFDFF) ||
+        (c >= 0xFE70 && c <= 0xFEFF)) rtl++;
+    else if ((c >= 65 && c <= 90) || (c >= 97 && c <= 122)) ltr++;
+  }
+  if (rtl === 0 && ltr === 0) return 'fa';
+  return (rtl > 0 && rtl >= ltr * 0.25) ? 'fa' : 'en';
+}
+
+/* ---------- چیدمان خودکار اولیه ---------- */
+
+function buildBranchColors() {
+  const branchOf = new Map();
+  nodes.get(rootId).childIds.forEach((kid, i) => {
+    const q = [kid];
+    branchOf.set(kid, i);
+    while (q.length) for (const k of nodes.get(q.pop()).childIds) { branchOf.set(k, i); q.push(k); }
+  });
+  return branchOf;
+}
+
+const visibleKids = n =>
+  (n.depth > 0 && collapsed.has(n.id)) || !n.childIds.length ? [] : n.childIds;
+
+function autoLayout() {
+  if (layoutName === 'org') return layoutOrg();
+  if (layoutName === 'radial') return layoutRadial();
+  if (layoutName === 'outline') return layoutOutline();
+  if (layoutName === 'timeline') return layoutTimeline();
+  layoutTree();
+}
+
+/* درختی افقی — چیدمان کلاسیک نقشهٔ ذهن (ریشه چپ، رشد به راست) */
+function layoutTree() {
+  const branchOf = buildBranchColors();
+  // y از لبهٔ بالا: مرکز برگ = بالا + نصف ارتفاع خودش؛ کرسر = پایین + فاصله.
+  let cursor = 0;
+  const place = (id, depth) => {
+    const n = nodes.get(id);
+    n.depth = depth;
+    n.branch = depth === 0 ? -1 : (branchOf.get(id) ?? 0);
+    const kids = visibleKids(n);
+    if (!kids.length) {
+      n.y = cursor + n.h / 2;
+      cursor += n.h + Y_GAP;
+    } else {
+      for (const k of kids) place(k, depth + 1);
+      n.y = (nodes.get(kids[0]).y + nodes.get(kids[kids.length - 1]).y) / 2;
+    }
+    n.x = depth * X_GAP * dirSign;
+  };
+  place(rootId, 0);
+}
+
+/* سازمانی عمودی — ریشه بالا، نسل‌ها پایین‌رو (نمودار سازمانی) */
+function layoutOrg() {
+  const branchOf = buildBranchColors();
+  const V_STEP = 110, H_STEP = 18;
+  let cursor = 0;
+  const place = (id, depth) => {
+    const n = nodes.get(id);
+    n.depth = depth;
+    n.branch = depth === 0 ? -1 : (branchOf.get(id) ?? 0);
+    const kids = visibleKids(n);
+    if (!kids.length) {
+      n.x = cursor + n.w / 2;
+      cursor += n.w + H_STEP;
+    } else {
+      for (const k of kids) place(k, depth + 1);
+      n.x = (nodes.get(kids[0]).x + nodes.get(kids[kids.length - 1]).x) / 2;
+    }
+    n.y = depth * V_STEP + n.h / 2;
+  };
+  place(rootId, 0);
+}
+
+/* شعاعی — ریشه مرکز، شاخه‌ها در همهٔ جهات */
+function layoutRadial() {
+  const branchOf = buildBranchColors();
+  const R_STEP = 250;
+  const angleOf = new Map();
+  let leafCount = 0;
+  const countLeaves = (id, depth) => {
+    const n = nodes.get(id);
+    n.depth = depth;
+    n.branch = depth === 0 ? -1 : (branchOf.get(id) ?? 0);
+    const kids = visibleKids(n);
+    if (!kids.length) { leafCount += 1; return; }
+    for (const k of kids) countLeaves(k, depth + 1);
+  };
+  countLeaves(rootId, 0);
+  let li = 0;
+  const giveAngles = (id, depth) => {
+    const n = nodes.get(id);
+    const kids = visibleKids(n);
+    if (!kids.length) {
+      const a = ((li + 0.5) * 2 * Math.PI) / Math.max(1, leafCount);
+      angleOf.set(id, a);
+      li += 1;
+      return a;
+    }
+    const angles = kids.map(k => giveAngles(k, depth + 1)).filter(a => a !== undefined);
+    if (angles.length) {
+      const a = Math.atan2(angles.reduce((s, x) => s + Math.sin(x), 0),
+                           angles.reduce((s, x) => s + Math.cos(x), 0));
+      angleOf.set(id, a);
+      return a;
+    }
+    return undefined;
+  };
+  giveAngles(rootId, 0);
+  const place = (id, depth) => {
+    const n = nodes.get(id);
+    const kids = visibleKids(n);
+    if (depth === 0) { n.x = 0; n.y = 0; }
+    else {
+      const r = depth * R_STEP;
+      const a = angleOf.get(id) ?? 0;
+      n.x = Math.cos(a) * r;
+      n.y = Math.sin(a) * r;
+    }
+    for (const k of kids) place(k, depth + 1);
+  };
+  place(rootId, 0);
+}
+
+/* آوت‌لاین — فهرست تودرتو با تورفتگی (مثل یادداشت درسی) */
+function layoutOutline() {
+  const branchOf = buildBranchColors();
+  const INDENT = 34, V_STEP = 10;
+  let cursor = 0;
+  const walk = (id, depth) => {
+    const n = nodes.get(id);
+    n.depth = depth;
+    n.branch = depth === 0 ? -1 : (branchOf.get(id) ?? 0);
+    n.x = depth * INDENT;
+    n.y = cursor + n.h / 2;
+    cursor += n.h + V_STEP;
+    if (!(depth > 0 && collapsed.has(id))) for (const k of n.childIds) walk(k, depth + 1);
+  };
+  walk(rootId, 0);
+}
+
+/* دوطرفهٔ افقی (تایم‌لاین) — نصف شاخه‌ها بالا، نصف پایین، خط از وسط ریشه */
+function layoutTimeline() {
+  const branchOf = buildBranchColors();
+  const root = nodes.get(rootId);
+  root.depth = 0; root.branch = -1; root.x = 0; root.y = 0;
+  const packSide = (ids, sign) => {
+    let cursor = 0;
+    const place = (id, depth) => {
+      const n = nodes.get(id);
+      n.depth = depth;
+      n.branch = branchOf.get(id) ?? 0;
+      const kids = visibleKids(n);
+      if (!kids.length) {
+        n.y = sign * (cursor + n.h / 2);
+        cursor += n.h + Y_GAP;
+      } else {
+        for (const k of kids) place(k, depth + 1);
+        n.y = (nodes.get(kids[0]).y + nodes.get(kids[kids.length - 1]).y) / 2;
+      }
+      n.x = depth * X_GAP;
+    };
+    for (const k of ids) place(k, 1);
+  };
+  const kids = root.childIds.slice();
+  const half = Math.ceil(kids.length / 2);
+  packSide(kids.slice(0, half), -1);
+  packSide(kids.slice(half), +1);
+}
+
+function applyLayoutName(name, notify) {
+  const key = LAYOUT_NAMES.includes(name) ? name : 'tree';
+  layoutName = key;
+  if (rootId && nodes.get(rootId)) {
+    autoLayout();
+    applyPositions();
+    drawWires();
+    fit();
+  }
+  if (notify) emitMapChanged();
+  return key;
+}
+window.setLayout = name => { try { return applyLayoutName(String(name || 'tree'), true); } catch (e) { return null; } };
+window.getLayoutName = () => layoutName;
+
+/* ---------- رندر ---------- */
+
+function branchColor(branch) {
+  const pal = PALETTES[themeName] || PALETTES.dark;
+  if (branch < 0) return '';
+  return pal[branch % pal.length];
+}
+
+function buildDOM() {
+  nodesLayer.innerHTML = '';
+  for (const n of nodes.values()) {
+    const el = document.createElement('div');
+    el.className = 'node' + (n.id === rootId ? ' root' : '');
+    el.dataset.id = n.id;
+    const card = document.createElement('div');
+    card.className = 'card';
+    const color = branchColor(n.branch);
+    if (color) card.style.setProperty('--br', color);
+    const txt = document.createElement('span');
+    txt.className = 'txt';
+    txt.textContent = n.text;
+    card.appendChild(txt);
+    if (n.childIds.length) {
+      const b = document.createElement('button');
+      b.className = 'tgl';
+      b.textContent = collapsed.has(n.id) ? '+' : '−';
+      b.title = collapsed.has(n.id) ? T().expandBranch : T().collapseBranch;
+      b.addEventListener('pointerdown', e => e.stopPropagation());
+      b.addEventListener('click', e => { e.stopPropagation(); toggle(n.id); });
+      card.appendChild(b);
+    }
+    el.appendChild(card);
+    nodesLayer.appendChild(el);
+    n.el = el; n.card = card; n.txt = txt;
+    card.addEventListener('pointerdown', e => onNodeDown(e, n));
+    card.addEventListener('contextmenu', e => {
+      e.preventDefault(); e.stopPropagation();
+      showNodeMenu(n, e.clientX, e.clientY);
+    });
+    txt.addEventListener('dblclick', e => { e.stopPropagation(); beginEdit(n); });
+  }
+}
+
+function measure() {
+  for (const n of nodes.values()) {
+    n.w = n.card.offsetWidth; n.h = n.card.offsetHeight;
+  }
+}
+
+function applyPositions() {
+  for (const n of nodes.values()) {
+    n.el.style.transform = `translate(${n.x - n.w / 2}px, ${n.y - n.h / 2}px)`;
+  }
+}
+
+function isVisible(n) {
+  let p = n.parentId ? nodes.get(n.parentId) : null;
+  while (p) { if (collapsed.has(p.id)) return false; p = p.parentId ? nodes.get(p.parentId) : null; }
+  return true;
+}
+
+function refreshVisibility() {
+  for (const n of nodes.values()) {
+    const vis = isVisible(n);
+    n.el.classList.toggle('hidden', !vis);
+    const b = n.card.querySelector('.tgl');
+    if (b) { b.textContent = collapsed.has(n.id) ? '+' : '−'; }
+  }
+  drawWires();
+}
+
+function anchor(n, toChild) {
+  // نقطهٔ اتصال روی لبهٔ گره — بسته به چیدمان
+  if (layoutName === 'org') {
+    return toChild ? { x: n.x, y: n.y + n.h / 2 } : { x: n.x, y: n.y - n.h / 2 };
+  }
+  if (layoutName === 'radial') {
+    return { x: n.x, y: n.y };
+  }
+  const s = dirSign >= 0 ? 1 : -1;
+  return toChild
+    ? { x: n.x + s * n.w / 2, y: n.y }
+    : { x: n.x - s * n.w / 2, y: n.y };
+}
+
+function drawWires() {
+  const palette = PALETTES[themeName] || PALETTES.dark;
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const n of nodes.values()) {
+    if (!isVisible(n)) continue;
+    minX = Math.min(minX, n.x - n.w / 2); maxX = Math.max(maxX, n.x + n.w / 2);
+    minY = Math.min(minY, n.y - n.h / 2); maxY = Math.max(maxY, n.y + n.h / 2);
+  }
+  if (minX === Infinity) { wires.innerHTML = ''; return; }
+  const pad = 80;
+  const ox = minX - pad, oy = minY - pad;
+  wires.setAttribute('width', Math.ceil(maxX - minX + pad * 2));
+  wires.setAttribute('height', Math.ceil(maxY - minY + pad * 2));
+  wires.style.transform = `translate(${ox}px, ${oy}px)`;
+  const f = v => (Math.round(v * 10) / 10);
+  let html = '';
+  for (const n of nodes.values()) {
+    if (!n.parentId || !isVisible(n)) continue;
+    const p = nodes.get(n.parentId);
+    if (!p || !isVisible(p)) continue;
+    const a = anchor(p, true), b = anchor(n, false);
+    const color = branchColor(n.branch) || palette[0];
+    let path;
+    if (layoutName === 'org') {
+      const my = (a.y + b.y) / 2;
+      path = `M ${f(a.x - ox)} ${f(a.y - oy)} C ${f(a.x - ox)} ${f(my - oy)}, ` +
+             `${f(b.x - ox)} ${f(my - oy)}, ${f(b.x - ox)} ${f(b.y - oy)}`;
+    } else if (layoutName === 'radial') {
+      path = `M ${f(a.x - ox)} ${f(a.y - oy)} L ${f(b.x - ox)} ${f(b.y - oy)}`;
+    } else {
+      const mx = (a.x + b.x) / 2;
+      path = `M ${f(a.x - ox)} ${f(a.y - oy)} C ${f(mx - ox)} ${f(a.y - oy)}, ` +
+             `${f(mx - ox)} ${f(b.y - oy)}, ${f(b.x - ox)} ${f(b.y - oy)}`;
+    }
+    html += `<path d="${path}" stroke="${color}" stroke-width="2" fill="none" opacity="0.75"/>`;
+  }
+  wires.innerHTML = html;
+}
+
+/* ---------- تعامل: درگ آزاد گره ---------- */
+
+let dragNode = null, dragMoved = false, dragLX = 0, dragLY = 0;
+
+function onNodeDown(e, n) {
+  if (e.button !== 0 && e.pointerType === 'mouse') return;      // درگ گره فقط با چپ
+  if (e.target.closest('.tgl')) return;
+  if (e.target.isContentEditable) return;
+  e.stopPropagation();
+  e.preventDefault();
+  select(n.id);
+  dragNode = n; dragMoved = false;
+  dragLX = e.clientX; dragLY = e.clientY;
+  try { e.target.setPointerCapture && e.target.setPointerCapture(e.pointerId); } catch (_) {}
+  const move = ev => {
+    if (!dragNode) return;
+    const dx = (ev.clientX - dragLX) / scale, dy = (ev.clientY - dragLY) / scale;
+    dragLX = ev.clientX; dragLY = ev.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 0) dragMoved = true;
+    n.x += dx; n.y += dy;
+    n.el.style.transform = `translate(${n.x - n.w / 2}px, ${n.y - n.h / 2}px)`;
+    drawWires();
+  };
+  const up = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', up, true);
+    window.removeEventListener('pointercancel', up, true);
+    if (dragMoved) emitMapChanged();
+    dragNode = null;
+  };
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', up, true);
+  window.addEventListener('pointercancel', up, true);
+}
+
+function select(id) {
+  selectedId = id;
+  for (const n of nodes.values()) n.el.classList.toggle('selected', n.id === id);
+}
+
+/* ---------- تعامل: پن و زوم بوم ---------- */
+
+let panning = false, panLX = 0, panLY = 0;
+
+viewport.addEventListener('pointerdown', e => {
+  if (e.target.closest('.node')) return;    // روی گره: مسئولیت با onNodeDown است
+  if (e.button !== 0 && e.button !== 2 && e.pointerType === 'mouse') return;
+  select(null);
+  panning = true; panLX = e.clientX; panLY = e.clientY;
+  viewport.classList.add('panning');
+  viewport.setPointerCapture(e.pointerId);
+});
+// زوم با چرخ ماوس/پینچ — روی نقطهٔ نشانگر (استاندارد بوم‌های نامتناهی)
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  const rect = viewport.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const wx = (mx - tx) / scale, wy = (my - ty) / scale;
+  const factor = Math.exp(-e.deltaY * 0.0016);
+  const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * factor));
+  if (ns === scale) return;
+  scale = ns;
+  tx = mx - wx * scale;
+  ty = my - wy * scale;
+  applyView();
+}, { passive: false });
+let gestureStartScale = 1;
+viewport.addEventListener('gesturestart', e => { e.preventDefault(); gestureStartScale = scale; });
+viewport.addEventListener('gesturechange', e => {
+  e.preventDefault();
+  const ns = Math.min(MAX_SCALE, Math.max(MIN_SCALE, gestureStartScale * e.scale));
+  if (ns === scale) return;
+  const rect = viewport.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const wx = (mx - tx) / scale, wy = (my - ty) / scale;
+  scale = ns;
+  tx = mx - wx * scale;
+  ty = my - wy * scale;
+  applyView();
+});
+
+viewport.addEventListener('pointermove', e => {
+  if (!panning) return;
+  tx += e.clientX - panLX; ty += e.clientY - panLY;
+  panLX = e.clientX; panLY = e.clientY;
+  applyView();
+});
+const endPan = () => { panning = false; viewport.classList.remove('panning'); };
+viewport.addEventListener('pointerup', endPan);
+viewport.addEventListener('pointercancel', endPan);
+viewport.addEventListener('contextmenu', e => e.preventDefault());
+
+viewport.addEventListener('wheel', e => {
+  e.preventDefault();
+  if (e.ctrlKey || e.metaKey) {
+    const f = e.deltaY < 0 ? 1.12 : 1 / 1.12;
+    zoomAt(e.clientX, e.clientY, scale * f);
+  } else {
+    tx -= e.deltaX; ty -= e.deltaY;
+    applyView();
+  }
+}, { passive: false });
+
+function applyView() {
+  world.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+}
+
+function zoomAt(cx, cy, next) {
+  next = Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
+  const r = viewport.getBoundingClientRect();
+  const vx = cx - r.left, vy = cy - r.top;
+  tx = vx - (vx - tx) * (next / scale);
+  ty = vy - (vy - ty) * (next / scale);
+  scale = next;
+  applyView();
+}
+
+function fit() {
+  const r = viewport.getBoundingClientRect();
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity, any = false;
+  for (const n of nodes.values()) {
+    if (!isVisible(n)) continue;
+    any = true;
+    minX = Math.min(minX, n.x - n.w / 2); maxX = Math.max(maxX, n.x + n.w / 2);
+    minY = Math.min(minY, n.y - n.h / 2); maxY = Math.max(maxY, n.y + n.h / 2);
+  }
+  if (!any) return;
+  const pad = 70;
+  const s = Math.min(MAX_SCALE, Math.max(MIN_SCALE,
+    Math.min((r.width - pad * 2) / Math.max(1, maxX - minX),
+             (r.height - pad * 2) / Math.max(1, maxY - minY))));
+  scale = s;
+  tx = (r.width - (maxX + minX) * s) / 2;
+  ty = (r.height - (maxY + minY) * s) / 2;
+  applyView();
+}
+
+/* ---------- جمع/باز ---------- */
+
+function toggle(id) {
+  if (collapsed.has(id)) collapsed.delete(id); else collapsed.add(id);
+  clearSearch();
+  refreshVisibility();
+}
+
+function expandAll() { collapsed.clear(); clearSearch(); refreshVisibility(); }
+function collapseAll() {
+  collapsed.clear();
+  for (const n of nodes.values()) if (n.childIds.length) collapsed.add(n.id);
+  clearSearch(); refreshVisibility();
+}
+
+/* ---------- ویرایش متن ---------- */
+
+function beginEdit(n) {
+  n.txt.contentEditable = 'true';
+  n.txt.focus();
+  document.getSelection().selectAllChildren(n.txt);
+  const commit = save => {
+    n.txt.contentEditable = 'false';
+    if (save) {
+      const v = n.txt.textContent.trim().slice(0, 240);
+      if (v) n.text = v; else n.txt.textContent = n.text;
+    } else {
+      n.txt.textContent = n.text;
+    }
+    measureOne(n);
+    applyPositions();
+    drawWires();
+    if (save) emitMapChanged();
+  };
+  n.txt.onblur = () => commit(true);
+  n.txt.onkeydown = ev => {
+    if (ev.key === 'Enter' && !ev.shiftKey) { ev.preventDefault(); n.txt.blur(); }
+    if (ev.key === 'Escape') { n.txt.onblur = null; commit(false); n.txt.blur(); }
+    ev.stopPropagation();
+  };
+}
+
+function measureOne(n) {
+  n.w = n.card.offsetWidth; n.h = n.card.offsetHeight;
+}
+
+/* ---------- تم و جهت ---------- */
+
+function applyThemeName(name) {
+  const key = THEME_NAMES.includes(name) ? name : 'dark';
+  themeName = key;
+  document.documentElement.dataset.theme = (key === 'light') ? 'light' : key;
+  for (const n of nodes.values()) {
+    const color = branchColor(n.branch);
+    if (color) n.card.style.setProperty('--br', color);
+    else n.card.style.removeProperty('--br');
+  }
+  drawWires();
+  return key;
+}
+
+function setDirection(d) {
+  const sign = (d === 0) ? -1 : +1;   // ۰=ریشه راست / ۱=ریشه چپ (پیش‌فرض)
+  if (sign === dirSign) return document.documentElement.dataset.dir;
+  dirSign = sign;
+  for (const n of nodes.values()) n.x *= -1;   // آینه‌کردن چیدمان فعلی؛ جابه‌جایی‌های دستی حفظ می‌شود
+  applyPositions();
+  drawWires();
+  fit();
+  return document.documentElement.dataset.dir;
+}
+
+/* ---------- جستجو ---------- */
+
+function visibleNodes() { return [...nodes.values()].filter(isVisible); }
+
+function clearSearch() {
+  matches = []; matchIndex = -1;
+  for (const n of nodes.values()) n.el.classList.remove('hit', 'dim');
+  $('searchCount').textContent = '';
+}
+
+function search(q) {
+  const query = String(q || '').trim().toLowerCase();
+  clearSearch();
+  if (!query) return 0;
+  matches = visibleNodes().filter(n => (n.text || '').toLowerCase().includes(query));
+  for (const n of visibleNodes()) if (!matches.includes(n)) n.el.classList.add('dim');
+  matchIndex = matches.length ? 0 : -1;
+  focusMatch();
+  return matches.length;
+}
+
+function focusMatch() {
+  for (const n of nodes.values()) n.el.classList.remove('hit');
+  if (matchIndex < 0 || !matches[matchIndex]) { $('searchCount').textContent = T().zero; return; }
+  const n = matches[matchIndex];
+  n.el.classList.add('hit');
+  $('searchCount').textContent = (matchIndex + 1) + '/' + matches.length;
+  // اگر بیرون دید است، بوم را جابه‌جا کن
+  const r = viewport.getBoundingClientRect();
+  const sx = (n.x * scale + tx), sy = (n.y * scale + ty);
+  if (sx < 20 || sx > r.width - 20 || sy < 20 || sy > r.height - 60) {
+    tx = r.width / 2 - n.x * scale; ty = r.height / 2 - n.y * scale;
+    applyView();
+  }
+}
+
+function searchStep(delta) {
+  if (!matches.length) return 0;
+  matchIndex = (matchIndex + delta + matches.length) % matches.length;
+  focusMatch();
+  return matchIndex + 1;
+}
+
+$('searchClose').onclick = () => { $('searchbar').classList.remove('on'); clearSearch(); };
+$('searchNext').onclick = () => searchStep(1);
+$('searchPrev').onclick = () => searchStep(-1);
+$('searchInput').addEventListener('input', e => search(e.target.value));
+$('searchInput').addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('searchClose').click();
+  if (e.key === 'Enter') searchStep(e.shiftKey ? -1 : 1);
+});
+
+/* ---------- کنترل‌های استاندارد: منوی راست‌کلیک + خواهر/برادر + میان‌بر کیبورد ---------- */
+
+function addSibling() {
+  const n = (selectedId && nodes.get(selectedId)) || null;
+  if (!n || n.id === rootId) return addChild();     // ریشه: فرزند می‌سازد
+  const parent = nodes.get(n.parentId);
+  if (!parent) return addChild();
+  const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  nodes.set(id, { id, text: T().newNode, note: '', parentId: parent.id, childIds: [],
+                  x: n.x, y: n.y, depth: n.depth, branch: n.branch });
+  const idx = parent.childIds.indexOf(n.id);
+  parent.childIds.splice(idx + 1, 0, id);
+  collapsed.delete(parent.id);
+  buildDOM(); measure(); autoLayout(); applyPositions(); refreshVisibility(); select(id); beginEdit(nodes.get(id)); emitMapChanged();
+  return id;
+}
+window.addSibling = addSibling;
+
+/* منوی راست‌کلیک روی گره‌ها */
+const ctxMenu = document.createElement('div');
+ctxMenu.style.cssText = 'position:fixed;display:none;z-index:50;min-width:170px;' +
+  'background:var(--node-bg);color:var(--node-text);border:1px solid var(--panel);' +
+  'border-radius:9px;padding:5px;box-shadow:0 8px 26px rgba(0,0,0,.35);font-size:12.5px;';
+ctxMenu.dir = 'rtl';
+document.body.appendChild(ctxMenu);
+function hideCtxMenu() { ctxMenu.style.display = 'none'; }
+function ctxItem(label, fn, danger) {
+  const b = document.createElement('div');
+  b.textContent = label;
+  b.style.cssText = 'padding:6px 10px;border-radius:6px;cursor:pointer;' +
+    (danger ? 'color:#ef8fa8;' : '');
+  b.addEventListener('mouseenter', () => { b.style.background = 'var(--panel)'; });
+  b.addEventListener('mouseleave', () => { b.style.background = 'transparent'; });
+  b.addEventListener('click', () => { hideCtxMenu(); fn(); });
+  ctxMenu.appendChild(b);
+  return b;
+}
+function showNodeMenu(n, cx, cy) {
+  select(n.id);
+  ctxMenu.innerHTML = '';
+  ctxItem(T().addChild, () => { addChild(); });
+  ctxItem(T().addSibling, () => { addSibling(); });
+  ctxItem(T().editText, () => { beginEdit(n); });
+  if (n.id !== rootId) {
+    ctxMenu.appendChild(document.createElement('hr')).style.cssText =
+      'border:none;border-top:1px solid var(--panel);margin:4px 6px;';
+    ctxItem(T().deleteNode, () => { deleteSelected(); }, true);
+  }
+  ctxMenu.style.display = 'block';
+  const w = ctxMenu.offsetWidth || 170, h = ctxMenu.offsetHeight || 120;
+  ctxMenu.style.left = Math.min(cx, window.innerWidth - w - 8) + 'px';
+  ctxMenu.style.top = Math.min(cy, window.innerHeight - h - 8) + 'px';
+}
+window.addEventListener('pointerdown', e => {
+  if (!ctxMenu.contains(e.target)) hideCtxMenu();
+}, true);
+window.addEventListener('blur', hideCtxMenu);
+
+/* میان‌برهای کیبورد استاندارد نقشهٔ ذهن (خارج از حالت ویرایش متن) */
+window.addEventListener('keydown', e => {
+  const t = e.target;
+  if (t && (t.isContentEditable || t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  switch (e.key) {
+    case 'Tab': e.preventDefault(); addChild(); break;
+    case 'Enter': e.preventDefault(); addSibling(); break;
+    case 'Delete': case 'Backspace': e.preventDefault(); deleteSelected(); break;
+    case '+': case '=': e.preventDefault(); zoomIn(); break;
+    case '-': e.preventDefault(); zoomOut(); break;
+    case '0': e.preventDefault(); fit(); break;
+  }
+});
+
+/* ---------- API عمومی (سازگار با نسخهٔ قبلی — سمت Swift تکان نمی‌خورد) ---------- */
+
+function currentSchema() {
+  const build = id => {
+    const n = nodes.get(id);
+    return { id: n.id, text: n.text, note: n.note || undefined,
+             children: n.childIds.map(build) };
+  };
+  const positions = {};
+  for (const n of nodes.values()) positions[n.id] = [Math.round(n.x), Math.round(n.y)];
+  return { meta: { ...(meta || {}), direction: dirSign >= 0 ? 1 : 0,
+                    theme: themeName, layout: layoutName, positions },
+           root: build(rootId) };
+}
+
+function emitMapChanged() {
+  try {
+    const channel = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.mindMapChange;
+    if (channel) channel.postMessage(JSON.stringify(currentSchema()));
+  } catch (_) {}
+}
+
+function clearMap() {
+  nodes.clear(); rootId = null; collapsed.clear(); selectedId = null;
+  nodesLayer.innerHTML = ''; wires.innerHTML = '';
+  wires.setAttribute('width', '0'); wires.setAttribute('height', '0');
+  currentData = null; matches = []; matchIndex = -1;
+  tx = 0; ty = 0; scale = 1; applyView();
+  document.documentElement.dataset.dir = 'rtl';
+  $('searchCount').textContent = '';
+}
+
+window.renderMindMap = function (json) {
+  try {
+    const data = typeof json === 'string' ? JSON.parse(json) : json;
+    const srcRoot = data.root || data;
+    if (!srcRoot) throw new Error(T().emptyMap);
+    meta = data.meta || {};
+    lang = meta.language || detectLang(JSON.stringify(srcRoot).slice(0, 2000));
+    document.documentElement.dataset.dir = (lang === 'en') ? 'ltr' : 'rtl';
+    // چیدمان همیشه ریشه‌چپ (چپ‌به‌راست)؛ جهت متن جدا از چیدمان است.
+    dirSign = +1;
+    applyThemeName(meta.theme && THEME_NAMES.includes(meta.theme) ? meta.theme : themeName);
+    layoutName = LAYOUT_NAMES.includes(meta.layout) ? meta.layout : 'tree';
+
+    const used = new Set();
+    const fresh = new Map();
+    sanitize(srcRoot, used, fresh);
+    if (!fresh.size) throw new Error(T().emptyMap);
+    nodes = fresh;
+    rootId = [...fresh.values()].find(n => !n.parentId).id;
+    collapsed = new Set();
+    selectedId = null;
+
+    buildDOM();
+    measure();
+    const saved = meta.positions || {};
+    const haveAll = [...nodes.keys()].every(id => Array.isArray(saved[id]));
+    if (haveAll) {
+      for (const [id, p] of Object.entries(saved)) {
+        const n = nodes.get(id);
+        if (n) { n.x = +p[0] || 0; n.y = +p[1] || 0; n.depth = 0; n.branch = -1; }
+      }
+      // عمق/شاخه برای رنگ
+      const mark = (id, d, br) => {
+        const n = nodes.get(id);
+        n.depth = d;
+        if (d === 1) br = (nodes.get(rootId).childIds.indexOf(id));
+        if (d > 0) n.branch = br;
+        for (const k of n.childIds) mark(k, d + 1, br);
+      };
+      mark(rootId, 0, -1);
+      for (const n of nodes.values()) {
+        const color = branchColor(n.branch);
+        if (color) n.card.style.setProperty('--br', color);
+      }
+    } else {
+      autoLayout();
+    }
+    applyPositions();
+    refreshVisibility();
+    clearSearch();
+    fit();
+    return JSON.stringify({ ok: true, nodes: nodes.size, dir: document.documentElement.dataset.dir });
+  } catch (e) {
+    return JSON.stringify({ ok: false, error: String((e && e.message) || e) });
+  }
+};
+window.clearMap = clearMap;
+
+/* ---------- ویرایش ساختار: افزودن/حذف گره ---------- */
+
+function addChild() {
+  const parent = (selectedId && nodes.get(selectedId)) || nodes.get(rootId);
+  if (!parent) return null;
+  const id = 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  nodes.set(id, { id, text: T().newNode, note: '', parentId: parent.id, childIds: [],
+                  x: parent.x + X_GAP * dirSign, y: parent.y,
+                  depth: (parent.depth || 0) + 1,
+                  branch: parent.id === rootId ? Math.max(0, parent.childIds.length) : (parent.branch ?? 0) });
+  parent.childIds.push(id);
+  collapsed.delete(parent.id);
+  buildDOM(); measure(); applyPositions(); refreshVisibility(); select(id); emitMapChanged();
+  return id;
+}
+
+function deleteSelected() {
+  if (!selectedId || selectedId === rootId) return false;
+  const node = nodes.get(selectedId);
+  if (!node) return false;
+  const dead = new Set();
+  const collect = id => { dead.add(id); (nodes.get(id)?.childIds || []).forEach(collect); };
+  collect(selectedId);
+  const parent = node.parentId ? nodes.get(node.parentId) : null;
+  if (parent) parent.childIds = parent.childIds.filter(k => k !== selectedId);
+  dead.forEach(id => nodes.delete(id));
+  selectedId = null;
+  buildDOM(); measure(); applyPositions(); refreshVisibility(); emitMapChanged();
+  return true;
+}
+
+window.addChild = addChild;
+window.deleteSelected = deleteSelected;
+window.hasSelection = () => !!(selectedId && selectedId !== rootId);
+
+window.zoomIn = () => { const r = viewport.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, scale + 0.15); };
+window.zoomOut = () => { const r = viewport.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, scale - 0.15); };
+window.fit = fit;
+window.expandAll = expandAll;
+window.collapseAll = collapseAll;
+window.setTheme = dark => applyThemeName(dark ? 'dark' : 'light');
+window.setThemeName = name => applyThemeName(String(name || 'dark'));
+window.getThemeName = () => themeName;
+window.setDirection = d => setDirection(d === 0 ? 0 : 1);
+window.search = search;
+window.searchStep = searchStep;
+window.openSearch = () => { $('searchbar').classList.add('on'); $('searchInput').focus(); $('searchInput').select(); };
+window.getDataString = () => { try { return JSON.stringify(currentSchema()); } catch (e) { return ''; } };
+window.__nodeCount = () => nodes.size;
+window.__positions = () => { const o = {}; for (const n of nodes.values()) o[n.id] = [Math.round(n.x), Math.round(n.y)]; return o; };
+
+window.__ready = true;
+</script>
+</body>
+</html>

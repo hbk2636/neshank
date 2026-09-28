@@ -1,0 +1,23 @@
+# Xcode/SwiftPM
+.build/
+build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+
+# بسته‌های توزیع (باینری — هرگز در مخزن نباید باشند)
+*.dmg
+*.app
+*.zip
+
+# macOS
+.DS_Store
+._*
+Thumbs.db
+
+# فایل‌های محلی
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
+*.log
