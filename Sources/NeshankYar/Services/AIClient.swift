@@ -20,6 +20,16 @@ enum KeychainStore {
         return String(data: data, encoding: .utf8)
     }
 
+    /// حذف آیتم (برای جلوگیری از واگرایی دو انبار وقتی نوشتن Keychain شکست می‌خورد)
+    static func delete(service: String, account: String) {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+
     /// مقدار خالی = حذف آیتم. true یعنی عملیات Keychain موفق بود.
     @discardableResult
     static func write(_ value: String, service: String, account: String) -> Bool {
@@ -86,11 +96,14 @@ struct AIConfig: Sendable {
     static func load() -> AIConfig {
         let d = UserDefaults.standard
         var key = KeychainStore.read(service: keychainService, account: keychainAccount) ?? ""
-        if key.isEmpty, let legacy = d.string(forKey: apiKeyKey), !legacy.isEmpty {
-            // مهاجرت یک‌باره: کلید متنی قدیمی به Keychain می‌رود و از prefs حذف می‌شود
-            if KeychainStore.write(legacy, service: keychainService, account: keychainAccount) {
+        // نسخهٔ prefs همیشه از مسیرِ fallbackِ ذخیره می‌آید؛ پس اگر موجود باشد و با
+        // Keychain فرق کند، تازه‌تر است و باید برنده شود — وگرنه کلید تازهٔ کاربر
+        // برای همیشه زیر کلید کهنهٔ Keychain دفن می‌شد (باگ واقعی نسخهٔ ۱.۴).
+        if let stored = d.string(forKey: apiKeyKey), !stored.isEmpty, stored != key {
+            key = stored
+            // خودترمیم: اگر نوشتن Keychain ممکن شد، prefs پاک می‌شود تا فقط یک منبع بماند
+            if KeychainStore.write(stored, service: keychainService, account: keychainAccount) {
                 d.removeObject(forKey: apiKeyKey)
-                key = legacy
             }
         }
         return AIConfig(
@@ -107,9 +120,11 @@ struct AIConfig: Sendable {
         d.set(model, forKey: Self.modelKey)
         d.set(profile, forKey: Self.profileKey)
         if KeychainStore.write(apiKey, service: Self.keychainService, account: Self.keychainAccount) {
-            d.removeObject(forKey: Self.apiKeyKey)   // نسخهٔ متنی قدیمی پاک شود
+            d.removeObject(forKey: Self.apiKeyKey)
         } else {
-            // Keychain در دسترس نبود (محیط نامتعارف) — مثل قبل در prefs می‌ماند تا عملکرد عقب نرود
+            // Keychain در دسترس نیست: آیتم کهنهٔ Keychain حذف می‌شود تا prefs تنها
+            // منبع بماند و load نسخهٔ تازه را ببیند (نه کلید مردهٔ قبلی را).
+            KeychainStore.delete(service: Self.keychainService, account: Self.keychainAccount)
             d.set(apiKey, forKey: Self.apiKeyKey)
         }
     }

@@ -453,11 +453,11 @@ struct SettingsView: View {
         }
     }
 
-    /// آزمایش زندهٔ اتصال به سرویس دستیار
+    /// آزمایش زندهٔ اتصال به سرویس دستیار — با مقادیر همین لحظهٔ فرم، نه انبار
     private func testConnection() {
         aiBusy = true
         aiResult = nil
-        let cfg = AIConfig.load()
+        let cfg = AIConfig(baseURL: aiBaseURL, apiKey: aiKey, model: aiModel, profile: aiProfile)
         let session = AIClient.newSession()
         Task {
             do {
