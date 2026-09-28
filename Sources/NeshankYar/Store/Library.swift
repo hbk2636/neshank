@@ -158,17 +158,33 @@ final class Library: ObservableObject {
     // MARK: وضعیت داخلی
 
     private let db: Database
+    /// مسیری که این نمونه با آن باز شده (برای بک‌آپ‌گیری و پیام خطا)
+    private let dbPath: String
     private var ftsEnabled = false
     private var searchTask: Task<Void, Never>?
     private var noticeTask: Task<Void, Never>?
     private var lastDeleted: [Int64] = []
+
+    /// اگر فایل دیتابیس واقعی باز نشده باشد و برنامه روی نسخهٔ حافظه‌ای کار کند،
+    /// این خطا صریحاً در UI اعلام می‌شود (تغییرات در آن حالت ذخیره نمی‌شوند).
+    @Published var storageError: String?
 
     // MARK: راه‌اندازی
 
     /// Internal path injection enables persistence tests to use a temporary database;
     /// production always uses the default Application Support path via `Library.shared`.
     init(databasePath: String = AppPaths.dbPath) {
-        db = (try? Database(path: databasePath)) ?? (try! Database(path: ":memory:"))
+        dbPath = databasePath
+        do {
+            db = try Database(path: databasePath)
+        } catch {
+            // آخرین پناه تا برنامه کرش نکند: دیتابیس حافظه‌ای — اما این وضعیت
+            // هرگز بی‌صدا نمی‌ماند و بلافاصله در UI هشدار داده می‌شود.
+            db = (try? Database(path: ":memory:")) ?? (try! Database(path: ":memory:"))
+            storageError = L.tf(
+                "The bookmarks database could not be opened — changes will NOT be saved. Path: %@ (%@)",
+                databasePath, error.localizedDescription)
+        }
         sort = Sort(rawValue: UserDefaults.standard.string(forKey: "sort") ?? "") ?? .newest
         viewMode = ViewMode(rawValue: UserDefaults.standard.string(forKey: "viewMode") ?? "") ?? .list
         Self.migrate(db)
@@ -179,6 +195,7 @@ final class Library: ObservableObject {
         refreshFilters()
         let saved = UserDefaults.standard.double(forKey: "lastCheck")
         lastCheck = saved > 0 ? Date(timeIntervalSince1970: saved) : nil
+        Self.scheduleDailyBackup(sourcePath: dbPath)
     }
 
     /// حذف قطعی نشانک‌هایی که بیش از ۳۰ روز در زباله‌دان مانده‌اند
@@ -282,6 +299,38 @@ final class Library: ObservableObject {
         // نقشه‌ها ردیف‌های مستقل‌اند و با هر تولید تازه یک شناسهٔ جدید می‌گیرند.
         // کش قدیمی مربوط به نسخهٔ آزمایشی و تک‌نقشه‌ای را حذف می‌کنیم.
         try? db.exec("DROP TABLE IF EXISTS mindmap_cache;")
+
+        // MARK: مهاجرت‌های نسخه‌ای (PRAGMA user_version)
+        // پایهٔ اسکیما همیشه idempotent بالا ساخته می‌شود؛ تغییرات جدیدِ خرابکننده
+        // اینجا به‌صورت مرحلهٔ نسخه‌دار اضافه می‌شوند تا روی فایل‌های قدیمی هم امن باشند.
+        let current = (try? db.scalarInt("PRAGMA user_version")) ?? 0
+        let migrations: [Int: (Database) throws -> Void] = [
+            // ۲: شمارش گرهٔ نقشه به‌صورت ستون — تا فهرست مجبور نباشد JSON کل ردیف‌ها را بخواند
+            2: { db in
+                Self.addColumn(db, table: "mind_maps", definition: "node_count INTEGER NOT NULL DEFAULT 0")
+                let rows = (try? db.rows("SELECT id, mind_map_json FROM mind_maps WHERE node_count = 0")) ?? []
+                for r in rows {
+                    guard let id = r.int("id") else { continue }
+                    let count = MindMapRecord.countNodes(in: r.textOrEmpty("mind_map_json"))
+                    _ = try? db.run("UPDATE mind_maps SET node_count = ? WHERE id = ?",
+                                    [.int(Int64(count)), .int(id)])
+                }
+            },
+        ]
+        var version = current
+        for (target, apply) in migrations.sorted(by: { $0.key < $1.key }) where target > current {
+            do {
+                try apply(db)
+                version = Int64(target)
+            } catch {
+                // مهاجرت ناموفق نسخه را جلو نمی‌برد؛ اجرای بعدی دوباره تلاش می‌کند
+                print("[NeshankYar] migration \(target) failed: \(error)")
+                break
+            }
+        }
+        if version != current {
+            try? db.exec("PRAGMA user_version = \(version)")
+        }
     }
 
     private static func addColumn(_ db: Database, table: String, definition: String) {
@@ -289,6 +338,55 @@ final class Library: ObservableObject {
         let existing = (try? db.rows("PRAGMA table_info(\(table))")) ?? []
         guard !existing.contains(where: { $0.text("name") == name }) else { return }
         try? db.exec("ALTER TABLE \(table) ADD COLUMN \(definition)")
+    }
+
+    // MARK: بک‌آپ دیتابیس
+
+    /// زمان‌بندی بک‌آپ روزانه — فقط مقادیر Sendable به تسک پس‌زمینه می‌روند.
+    private nonisolated static func scheduleDailyBackup(sourcePath: String) {
+        #if DEBUG
+        // در تست‌های یکپارچگی، بک‌آپ خودکار به مسیر واقعی کاربر نرود
+        if ProcessInfo.processInfo.environment["NESHANKYAR_TEST_DATA_DIR"] != nil { return }
+        #endif
+        let backupsDirectory = AppPaths.backupsDir.path
+        Task.detached(priority: .utility) {
+            try? await Task.sleep(nanoseconds: 4_000_000_000)   // تا افتتاح برنامه مزاحم نشود
+            Library.dailyBackupIfNeeded(sourcePath: sourcePath, backupsDirectory: backupsDirectory)
+        }
+    }
+
+    /// روزانه یک‌بار اسنپ‌شات می‌گیرد و ۵ نسخهٔ آخرِ خودکار را نگه می‌دارد
+    /// (بک‌آپ‌های دستی کاربر هرگز خودکار حذف نمی‌شوند؛ هر نسخه در حد چند صد کیلوبایت).
+    nonisolated static func dailyBackupIfNeeded(sourcePath: String, backupsDirectory: String, keep: Int = 5) {
+        let defaults = UserDefaults.standard
+        if let last = defaults.object(forKey: "lastAutoBackup") as? Date,
+           Calendar.current.isDateInToday(last) { return }
+        do {
+            _ = try Database.backup(sourcePath: sourcePath, directory: backupsDirectory, prefix: "auto")
+            defaults.set(Date(), forKey: "lastAutoBackup")
+            pruneBackups(directory: backupsDirectory, prefix: "neshank-auto-", keep: keep)
+        } catch {
+            // بک‌آپ بهترین‌تلاش است؛ خطا لاگ می‌شود و اجرای بعدی دوباره تلاش می‌کند
+            print("[NeshankYar] auto-backup failed: \(error)")
+        }
+    }
+
+    /// بک‌آپ فوری (دکمهٔ تنظیمات) — مسیر فایل ساخته‌شده را برمی‌گرداند.
+    @discardableResult
+    func backUpNow() throws -> URL {
+        try Database.backup(sourcePath: dbPath, directory: AppPaths.backupsDir.path, prefix: "manual")
+    }
+
+    /// حذف نسخه‌های قدیمی بک‌آپ با همان پیشوند تا فقط `keep` تای آخر بماند
+    nonisolated static func pruneBackups(directory: String, prefix: String, keep: Int) {
+        let fm = FileManager.default
+        guard let items = try? fm.contentsOfDirectory(atPath: directory) else { return }
+        let files = items
+            .filter { $0.hasPrefix(prefix) && $0.hasSuffix(".sqlite3") }
+            .sorted(by: >)
+        for old in files.dropFirst(keep) {
+            try? fm.removeItem(atPath: (directory as NSString).appendingPathComponent(old))
+        }
     }
 
     @discardableResult
@@ -321,7 +419,9 @@ final class Library: ObservableObject {
     private func seedIfNeeded() {
         let n = (try? db.scalarInt("SELECT COUNT(*) FROM folders")) ?? 0
         guard n == 0 else { return }
-        for (i, name) in ["خواندنی‌ها", "کاری", "سرگرمی"].enumerated() {
+        // نام‌ها به زبان رابط برنامه؛ در دیتابیس ذخیره می‌شوند ولی بومی‌سازی بعدی
+        // از طریق نمایش، و تغییر نام کاربر همیشه ممکن است.
+        for (i, name) in [L.tr("Reading List"), L.tr("Work"), L.tr("Entertainment")].enumerated() {
             _ = try? db.run("INSERT INTO folders(name, pos) VALUES (?, ?)", [.text(name), .int(Int64(i))])
         }
     }
@@ -492,16 +592,17 @@ final class Library: ObservableObject {
         let q = query.trimmed
         let rows: [DBRow]
         if q.isEmpty {
+            // فهرست JSON کامل را نمی‌خواهد (سنگین) — فقط شمارش گره
             rows = (try? db.rows("""
-                SELECT id, title, source_url, normalized_url, content_hash, mind_map_json,
-                       raw_markdown, model, language, created_at, updated_at
+                SELECT id, title, source_url, normalized_url, content_hash,
+                       raw_markdown, model, language, node_count, created_at, updated_at
                 FROM mind_maps ORDER BY created_at DESC LIMIT 2000
                 """)) ?? []
         } else {
             let like = "%\(q)%"
             rows = (try? db.rows("""
-                SELECT id, title, source_url, normalized_url, content_hash, mind_map_json,
-                       raw_markdown, model, language, created_at, updated_at
+                SELECT id, title, source_url, normalized_url, content_hash,
+                       raw_markdown, model, language, node_count, created_at, updated_at
                 FROM mind_maps
                 WHERE title LIKE ? OR source_url LIKE ? OR raw_markdown LIKE ?
                 ORDER BY created_at DESC LIMIT 2000
@@ -516,7 +617,7 @@ final class Library: ObservableObject {
     func mindMap(id: Int64) -> MindMapRecord? {
         guard let row = try? db.rows("""
             SELECT id, title, source_url, normalized_url, content_hash, mind_map_json,
-                   raw_markdown, model, language, created_at, updated_at
+                   raw_markdown, model, language, node_count, created_at, updated_at
             FROM mind_maps WHERE id = ? LIMIT 1
             """, [.int(id)]).first else { return nil }
         return MindMapRecord(row: row)
@@ -532,10 +633,13 @@ final class Library: ObservableObject {
         do {
             let id = try db.run("""
                 INSERT INTO mind_maps(title, source_url, normalized_url, content_hash,
-                                      mind_map_json, raw_markdown, model, language, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                      mind_map_json, raw_markdown, model, language, node_count,
+                                      created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, [.text(title), .text(sourceURL), .text(normalized), .text(hash), .text(json),
-                      .text(markdown), .text(model), .text(language), .real(now), .real(now)])
+                      .text(markdown), .text(model), .text(language),
+                      .int(Int64(MindMapRecord.countNodes(in: json))),
+                      .real(now), .real(now)])
             refreshCounts()
             if scope == .mindMaps {
                 reloadMindMaps()
@@ -557,10 +661,13 @@ final class Library: ObservableObject {
         do {
             _ = try db.run("""
                 UPDATE mind_maps SET title = ?, source_url = ?, normalized_url = ?, content_hash = ?,
-                    mind_map_json = ?, raw_markdown = ?, model = ?, language = ?, updated_at = ?
+                    mind_map_json = ?, raw_markdown = ?, model = ?, language = ?,
+                    node_count = ?, updated_at = ?
                 WHERE id = ?
                 """, [.text(title), .text(sourceURL), .text(normalized), .text(hash), .text(json),
-                      .text(markdown), .text(model), .text(language), .real(Date().timeIntervalSince1970),
+                      .text(markdown), .text(model), .text(language),
+                      .int(Int64(MindMapRecord.countNodes(in: json))),
+                      .real(Date().timeIntervalSince1970),
                       .int(id)])
             if scope == .mindMaps { reloadMindMaps() }
             return true
@@ -670,6 +777,19 @@ final class Library: ObservableObject {
             try? await Task.sleep(nanoseconds: 3_500_000_000)
             guard let self, !Task.isCancelled else { return }
             self.notice = nil
+        }
+    }
+
+    /// اجرای یک فرمان نوشتن DB با گزارش خطا — جایگزین `try?` بی‌صدایی که
+    /// از دست رفتن داده را پنهان می‌کرد. `context` برای پیام خطای کاربر است.
+    @discardableResult
+    private func runWrite(_ sql: String, _ params: [SQLValue] = [], context: String) -> Bool {
+        do {
+            _ = try db.run(sql, params)
+            return true
+        } catch {
+            notify(L.tf("Save failed: %@ — %@", L.tr(context), error.localizedDescription))
+            return false
         }
     }
 
@@ -815,13 +935,15 @@ final class Library: ObservableObject {
     func restore(ids: [Int64]) {
         guard !ids.isEmpty else { return }
         let stamp = Date().timeIntervalSince1970
+        var failed = 0
         for id in ids {
-            _ = try? db.run("UPDATE bookmarks SET deleted_at = NULL, updated_at = ? WHERE id = ?", [
-                .real(stamp), .int(id)
-            ])
+            if !runWrite("UPDATE bookmarks SET deleted_at = NULL, updated_at = ? WHERE id = ?",
+                         [.real(stamp), .int(id)], context: "Restore") { failed += 1 }
         }
         reload()
-        notify(L.tf("%@ bookmarks restored", Digits.fa(ids.count)))
+        if failed == 0 {
+            notify(L.tf("%@ bookmarks restored", Digits.fa(ids.count)))
+        }
     }
 
     /// حذف قطعی همهٔ محتوای زباله‌دان
@@ -830,18 +952,20 @@ final class Library: ObservableObject {
             notify(L.tr("Trash is empty"))
             return
         }
-        var n = 0
+        var n = 0, failed = 0
         for r in rows {
             guard let id = r.int("id") else { continue }
             for key in ["favicon", "thumb", "screenshot"].compactMap({ r.text($0) }) {
                 try? FileManager.default.removeItem(atPath: key)
             }
-            _ = try? db.run("DELETE FROM bookmarks WHERE id = ?", [.int(id)])
+            if !runWrite("DELETE FROM bookmarks WHERE id = ?", [.int(id)], context: "Empty Trash") { failed += 1 }
             removeFromFTS(id)
             n += 1
         }
         reload()
-        notify(L.tf("%@ bookmarks deleted permanently", Digits.fa(n)))
+        if failed == 0 {
+            notify(L.tf("%@ bookmarks deleted permanently", Digits.fa(n)))
+        }
     }
 
     /// حذف قطعی یک نشانک از زباله‌دان
@@ -852,7 +976,7 @@ final class Library: ObservableObject {
                     try? FileManager.default.removeItem(atPath: path)
                 }
             }
-            _ = try? db.run("DELETE FROM bookmarks WHERE id = ?", [.int(id)])
+            runWrite("DELETE FROM bookmarks WHERE id = ?", [.int(id)], context: "Delete Permanently")
             removeFromFTS(id)
         }
         if let sel = selectedId, ids.contains(sel) { selectedId = nil }
@@ -863,11 +987,11 @@ final class Library: ObservableObject {
     // MARK: - پرچم‌ها
 
     private func setFlag(_ id: Int64, column: String, value: Bool) {
-        _ = try? db.run("UPDATE bookmarks SET \(column) = ?, updated_at = ? WHERE id = ?", [
+        runWrite("UPDATE bookmarks SET \(column) = ?, updated_at = ? WHERE id = ?", [
             .int(value ? 1 : 0),
             .real(Date().timeIntervalSince1970),
             .int(id)
-        ])
+        ], context: "Update")
         reload()
     }
 
@@ -881,11 +1005,11 @@ final class Library: ObservableObject {
         let allowed = ["starred", "is_read", "is_archived", "is_dead"]
         guard allowed.contains(column) else { return }
         for id in ids {
-            _ = try? db.run("UPDATE bookmarks SET \(column) = ?, updated_at = ? WHERE id = ?", [
+            runWrite("UPDATE bookmarks SET \(column) = ?, updated_at = ? WHERE id = ?", [
                 .int(value ? 1 : 0),
                 .real(Date().timeIntervalSince1970),
                 .int(id)
-            ])
+            ], context: "Update")
         }
         reload()
     }
@@ -897,21 +1021,21 @@ final class Library: ObservableObject {
     }
 
     func updateNote(_ id: Int64, _ note: String) {
-        _ = try? db.run("UPDATE bookmarks SET note = ?, updated_at = ? WHERE id = ?", [
+        runWrite("UPDATE bookmarks SET note = ?, updated_at = ? WHERE id = ?", [
             .text(note.trimmed),
             .real(Date().timeIntervalSince1970),
             .int(id)
-        ])
+        ], context: "Save Note")
         reload()
     }
 
     func setFolder(_ ids: [Int64], folderId: Int64?) {
         for id in ids {
-            _ = try? db.run("UPDATE bookmarks SET folder_id = ?, updated_at = ? WHERE id = ?", [
+            runWrite("UPDATE bookmarks SET folder_id = ?, updated_at = ? WHERE id = ?", [
                 folderId.map { .int($0) } ?? .null,
                 .real(Date().timeIntervalSince1970),
                 .int(id)
-            ])
+            ], context: "Move to Folder")
         }
         reload()
     }
@@ -936,8 +1060,9 @@ final class Library: ObservableObject {
     func renameFolder(id: Int64, name: String) {
         let n = name.trimmed
         guard !n.isEmpty else { return }
-        _ = try? db.run("UPDATE folders SET name = ? WHERE id = ?", [.text(n), .int(id)])
-        reload()
+        if runWrite("UPDATE folders SET name = ? WHERE id = ?", [.text(n), .int(id)], context: "Rename Folder") {
+            reload()
+        }
     }
 
     func deleteFolder(id: Int64) {
@@ -945,11 +1070,13 @@ final class Library: ObservableObject {
         guard let target = flat.first(where: { $0.id == id }) else { return }
         // زیرپوشه‌ها یک سطح بالا می‌آیند (حذف نمی‌شوند) و نشانک‌های خود پوشه بی‌پوشه می‌شوند
         let newParent: SQLValue = target.parentId.map { .int($0) } ?? .null
-        _ = try? db.run("UPDATE folders SET parent_id = ? WHERE parent_id = ?",
-                        [newParent, .int(id)])
-        _ = try? db.run("UPDATE bookmarks SET folder_id = NULL WHERE folder_id = ?",
-                        [.int(id)])
-        _ = try? db.run("DELETE FROM folders WHERE id = ?", [.int(id)])
+        var failed = false
+        failed = !runWrite("UPDATE folders SET parent_id = ? WHERE parent_id = ?",
+                        [newParent, .int(id)], context: "Delete Folder") || failed
+        failed = !runWrite("UPDATE bookmarks SET folder_id = NULL WHERE folder_id = ?",
+                        [.int(id)], context: "Delete Folder") || failed
+        failed = !runWrite("DELETE FROM folders WHERE id = ?", [.int(id)], context: "Delete Folder") || failed
+        if failed { return }
         if case .folder(let f) = scope {
             if f == id || isDescendant(folderId: f, of: id) {
                 scope = .all
@@ -978,16 +1105,18 @@ final class Library: ObservableObject {
 
     /// سنجاق‌کردن پوشه به بالای فهرست (یا برداشتن سنجاق)
     func setFolderPinned(id: Int64, pinned: Bool) {
-        _ = try? db.run("UPDATE folders SET pinned = ? WHERE id = ?", [.int(pinned ? 1 : 0), .int(id)])
-        refreshFolders()
+        if runWrite("UPDATE folders SET pinned = ? WHERE id = ?",
+                    [.int(pinned ? 1 : 0), .int(id)], context: "Pin to Top") {
+            refreshFolders()
+        }
     }
 
     /// رنگ سفارشی پوشه (nil = بازگشت به پیش‌فرض)
     func setFolderColor(id: Int64, hex: String?) {
         if let hex {
-            _ = try? db.run("UPDATE folders SET color = ? WHERE id = ?", [.text(hex), .int(id)])
+            runWrite("UPDATE folders SET color = ? WHERE id = ?", [.text(hex), .int(id)], context: "Folder Appearance")
         } else {
-            _ = try? db.run("UPDATE folders SET color = NULL WHERE id = ?", [.int(id)])
+            runWrite("UPDATE folders SET color = NULL WHERE id = ?", [.int(id)], context: "Folder Appearance")
         }
         reload()
     }
@@ -995,9 +1124,9 @@ final class Library: ObservableObject {
     /// آیکون سفارشی پوشه (nil = پیش‌فرض)
     func setFolderIcon(id: Int64, icon: String?) {
         if let icon, !icon.isEmpty {
-            _ = try? db.run("UPDATE folders SET icon = ? WHERE id = ?", [.text(icon), .int(id)])
+            runWrite("UPDATE folders SET icon = ? WHERE id = ?", [.text(icon), .int(id)], context: "Folder Appearance")
         } else {
-            _ = try? db.run("UPDATE folders SET icon = NULL WHERE id = ?", [.int(id)])
+            runWrite("UPDATE folders SET icon = NULL WHERE id = ?", [.int(id)], context: "Folder Appearance")
         }
         reload()
     }
@@ -1005,7 +1134,7 @@ final class Library: ObservableObject {
     // MARK: - برچسب‌ها
 
     private func setTags(bookmarkId: Int64, names: [String]) {
-        _ = try? db.run("DELETE FROM bookmark_tags WHERE bookmark_id = ?", [.int(bookmarkId)])
+        runWrite("DELETE FROM bookmark_tags WHERE bookmark_id = ?", [.int(bookmarkId)], context: "Update Tags")
         for raw in names {
             let n = raw.trimmed
             guard !n.isEmpty else { continue }
@@ -1035,7 +1164,8 @@ final class Library: ObservableObject {
     func removeTag(bookmarkId: Int64, name: String) {
         guard let row = try? db.rows("SELECT id FROM tags WHERE name = ? COLLATE NOCASE", [.text(name)]).first,
               let tid = row.int("id") else { return }
-        _ = try? db.run("DELETE FROM bookmark_tags WHERE bookmark_id = ? AND tag_id = ?", [.int(bookmarkId), .int(tid)])
+        runWrite("DELETE FROM bookmark_tags WHERE bookmark_id = ? AND tag_id = ?",
+                 [.int(bookmarkId), .int(tid)], context: "Remove tag")
         reload()
     }
 
@@ -1093,14 +1223,16 @@ final class Library: ObservableObject {
     func renameFilter(id: Int64, name: String) {
         let n = name.trimmed
         guard !n.isEmpty else { return }
-        _ = try? db.run("UPDATE saved_filters SET name = ? WHERE id = ?", [.text(n), .int(id)])
-        refreshFilters()
+        if runWrite("UPDATE saved_filters SET name = ? WHERE id = ?", [.text(n), .int(id)], context: "Rename Filter") {
+            refreshFilters()
+        }
     }
 
     func deleteFilter(id: Int64) {
-        _ = try? db.run("DELETE FROM saved_filters WHERE id = ?", [.int(id)])
-        refreshFilters()
-        notify(L.tr("Filter deleted"))
+        if runWrite("DELETE FROM saved_filters WHERE id = ?", [.int(id)], context: "Delete Filter") {
+            refreshFilters()
+            notify(L.tr("Filter deleted"))
+        }
     }
 
     // MARK: - تکراری‌یاب

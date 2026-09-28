@@ -240,4 +240,32 @@ final class Database {
             throw error
         }
     }
+
+    // MARK: بک‌آپ
+
+    /// اسنپ‌شات سازگار و اتمیک با `VACUUM INTO` — روی اتصال کوتاه‌مدتِ مستقل،
+    /// بدون درگیر کردن اتصال اصلی برنامه (با WAL هم اسنپ‌شات سازگار می‌دهد).
+    /// - Returns: مسیر فایل بک‌آپ ساخته‌شده
+    @discardableResult
+    static func backup(sourcePath: String, directory: String, prefix: String,
+                       stamp: Date = Date()) throws -> URL {
+        // فایل ناموجود با پرچم CREATE ساخته می‌شود؛ بک‌آپ از منبع ناموجود معنا ندارد
+        guard FileManager.default.fileExists(atPath: sourcePath) else {
+            throw DBError.openFailed("source database not found: \(sourcePath)")
+        }
+        let fm = FileManager.default
+        try fm.createDirectory(atPath: directory, withIntermediateDirectories: true)
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+        let name = "neshank-\(prefix)-\(formatter.string(from: stamp)).sqlite3"
+        let destination = (directory as NSString).appendingPathComponent(name)
+        // VACUUM INTO اگر فایل موجود باشد شکست می‌خورد
+        try? fm.removeItem(atPath: destination)
+        // کوتیشن تنها در مسیر escape می‌شود؛ مقدار مستقیم در SQL درج می‌شود چون PRAGMA/INTO پارامتر نمی‌پذیرد
+        let escaped = destination.replacingOccurrences(of: "'", with: "''")
+        let source = try Database(path: sourcePath)   // deinit اتصال را می‌بندد
+        try source.exec("VACUUM INTO '\(escaped)'")
+        return URL(fileURLWithPath: destination)
+    }
 }

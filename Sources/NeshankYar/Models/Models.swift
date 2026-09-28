@@ -307,6 +307,13 @@ enum AppPaths {
 
     static var dbPath: String { root.appendingPathComponent("NeshankYar.sqlite3").path }
 
+    /// پوشهٔ بک‌آپ‌های خودکار/دستی دیتابیس (چند صد کیلوبایت برای هر نسخه)
+    static var backupsDir: URL {
+        let dir = root.appendingPathComponent("Backups", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
     /// فایل کش‌شده (فاوآیکون/تصویر) را ذخیره و مسیرش را برمی‌گرداند.
     @discardableResult
     static func save(_ data: Data, folder: String, key: String, ext: String) -> String? {

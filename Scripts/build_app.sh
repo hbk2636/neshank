@@ -8,7 +8,7 @@ cd "$(dirname "$0")/.."
 CONFIG="${1:-release}"
 APP_NAME="NeshankYar"        # نام فایل اجرایی (CFBundleExecutable)
 BUNDLE_NAME="نشانک"          # نام نمایشی و نام فایل .app
-VERSION="1.0"
+VERSION="1.4"
 AUTHOR="hosein shahraki"
 OUT_DIR="build"
 APP="$OUT_DIR/$BUNDLE_NAME.app"

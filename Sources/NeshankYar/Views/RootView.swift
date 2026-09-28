@@ -8,6 +8,8 @@ struct RootView: View {
     @State private var dropTargeted = false
     @State private var page: AppPage?
     @State private var showPalette = false
+    /// هشدار بحرانی: فایل دیتابیس واقعی باز نشده و تغییرات ذخیره نمی‌شوند
+    @State private var showStorageAlert = false
 
     /// صفحه‌های تمام‌پنجره‌ای (پایدارتر از شیت؛ با Esc یا دکمهٔ بستن بسته می‌شوند)
     enum AppPage: String, Identifiable {
@@ -145,6 +147,18 @@ struct RootView: View {
             if UserDefaults.standard.bool(forKey: "checkOnLaunch") {
                 await lib.checkAllLinks()
             }
+        }
+        .onAppear {
+            if lib.storageError != nil { showStorageAlert = true }
+        }
+        .onChange(of: lib.storageError) { err in
+            if err != nil { showStorageAlert = true }
+        }
+        .alert(L.tr("Storage Problem"), isPresented: $showStorageAlert) {
+            Button(L.tr("Quit")) { NSApp.terminate(nil) }
+            Button(L.tr("Continue without saving")) {}
+        } message: {
+            Text(lib.storageError ?? "")
         }
     }
 

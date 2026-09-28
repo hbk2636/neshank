@@ -271,7 +271,7 @@ enum AIClient {
             if code == 400 {
                 let lower = msg.lowercased()
                 // برخی مدل‌ها/سرویس‌ها پارامتر reasoning_effort را نمی‌پذیرند — بدون آن تلاش کن
-                if let effort = reasoningEffort,
+                if reasoningEffort != nil,
                    lower.contains("reasoning") || lower.contains("effort") {
                     return try await chat(config: config, session: session, messages: messages,
                                           maxTokens: maxTokens, reasoningEffort: nil,

@@ -462,7 +462,7 @@ if let standalone = MindMapExport.standaloneHTML(indexHTML: fakeIndex, css: "/*c
                                                  pageTitle: "نقشهٔ من") {
     check("HTML مستقل: داده فقط به صورت JSON.parse و فراخوانی خودکار",
           standalone.contains("renderMindMap(JSON.parse(") && standalone.contains("\\\"meta\\\""))
-    check("HTML مستقل: عنوان صفحه", standalone.contains("نقشهٔ من — نقشهٔ ذهنی"))
+    check("HTML مستقل: عنوان صفحه", standalone.contains("نقشهٔ من — \(L.tr("Mind Map"))"))
     check("HTML مستقل: بدون ارجاع ریموت", !standalone.contains("src=\"./") && !standalone.contains("href=\"./"))
     check("HTML مستقل: قالب دست‌نخورده می‌ماند", standalone.contains("window.renderMindMap=function(){}"))
 } else {
@@ -508,7 +508,7 @@ let mapRow = DBRow(values: [
     "updated_at": .real(1_790_000_100)
 ])
 let independentMap = MindMapRecord(row: mapRow)
-check("رکورد نقشه: شناسه مستقل از نشانک", independentMap.id == 91 && independentMap.nodeCount == 4)
+check("رکورد نقشه: شناسه مستقل از نشانک", independentMap.id == 91 && independentMap.displayNodeCount == 4)
 check("رکورد نقشه: آدرس و متن منبع حفظ می‌شوند",
       independentMap.sourceURL.contains("wikipedia.org") && independentMap.rawMarkdown.contains("## جغرافیا"))
 check("نصب تازه: هیچ نقشهٔ نمونه‌ای در کد نیست",

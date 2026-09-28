@@ -25,6 +25,8 @@ enum AppActions {
                 }
                 if let i = items.firstIndex(where: {
                     $0.title.localizedCaseInsensitiveContains("setting")
+                        || $0.title.localizedCaseInsensitiveContains("настройк")
+                        || $0.title.contains("设置")
                         || $0.title.contains("تنظیمات")
                 }) {
                     menu.performActionForItem(at: i)

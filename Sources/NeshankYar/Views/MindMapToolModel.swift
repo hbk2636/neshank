@@ -111,7 +111,7 @@ final class MindMapToolModel: ObservableObject {
         mapJSON = record.mindMapJSON
         phase = .result
         tab = .map
-        statusText = L.tf("Saved map opened from library · %@ nodes", Digits.fa(record.nodeCount))
+        statusText = L.tf("Saved map opened from library · %@ nodes", Digits.fa(record.displayNodeCount))
         unsavedChanged = false
     }
 

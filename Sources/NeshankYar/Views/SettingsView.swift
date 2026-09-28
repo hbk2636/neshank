@@ -81,6 +81,10 @@ struct SettingsView: View {
                 SecureField(L.tr("Assistant API Key"), text: $aiKey)
                     .textSelection(.enabled)
 
+                Text(L.tr("Privacy note: when you use the assistant, the page's saved text, your profile and your question are sent to the assistant service above."))
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
                 Picker(L.tr("Model Selection Mode"), selection: $aiModelMode) {
                     Text(L.tr("From Provider List")).tag("list")
                     Text(L.tr("Manual Entry")).tag("manual")
@@ -288,6 +292,27 @@ struct SettingsView: View {
                         }
                     }
                 }
+
+                // بک‌آپ روزانه خودکار + بک‌آپ فوری
+                LabeledContent(L.tr("Backups")) {
+                    HStack {
+                        Button(L.tr("Back Up Now")) {
+                            do {
+                                let url = try lib.backUpNow()
+                                lib.notify(L.tf("Backup created: %@", url.lastPathComponent))
+                            } catch {
+                                lib.notify(L.tf("Backup failed: %@", error.localizedDescription))
+                            }
+                        }
+                        Button(L.tr("Show Backups in Finder")) {
+                            NSApp.activate(ignoringOtherApps: true)
+                            NSWorkspace.shared.open(AppPaths.backupsDir)
+                        }
+                    }
+                }
+                Text(L.tr("A snapshot is taken automatically once a day; the last 5 automatic copies are kept (each a few hundred KB). Manual backups are never deleted."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 HStack {
                     Button(L.tr("Find & Remove Duplicates…")) {

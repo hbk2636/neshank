@@ -113,12 +113,18 @@ final class ChatStore: ObservableObject {
     @discardableResult
     func create(kind: Chat.Kind, bookmarkId: Int64?, title: String) -> Int64 {
         let now = Date().timeIntervalSince1970
-        let id = (try? db.run(
-            "INSERT INTO chats(title, kind, bookmark_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
-            [.text(title), .text(kind.rawValue),
-             bookmarkId.map { SQLValue.int($0) } ?? .null,
-             .real(now), .real(now)]
-        )) ?? 0
+        let id: Int64
+        do {
+            id = try db.run(
+                "INSERT INTO chats(title, kind, bookmark_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+                [.text(title), .text(kind.rawValue),
+                 bookmarkId.map { SQLValue.int($0) } ?? .null,
+                 .real(now), .real(now)])
+        } catch {
+            errorText = L.tf("Failed to save: %@", error.localizedDescription)
+            reloadChats()
+            return 0
+        }
         reloadChats()
         selectedId = id
         loadMessages(chatId: id)
@@ -141,29 +147,45 @@ final class ChatStore: ObservableObject {
     func rename(_ id: Int64, title: String) {
         let clean = title.trimmed
         guard !clean.isEmpty else { return }
-        _ = try? db.run("UPDATE chats SET title = ?, updated_at = ? WHERE id = ?",
-                        [.text(clean), .real(Date().timeIntervalSince1970), .int(id)])
+        do {
+            _ = try db.run("UPDATE chats SET title = ?, updated_at = ? WHERE id = ?",
+                           [.text(clean), .real(Date().timeIntervalSince1970), .int(id)])
+        } catch {
+            errorText = L.tf("Failed to save: %@", error.localizedDescription)
+        }
         reloadChats()
     }
 
     func setPinned(_ id: Int64, _ pinned: Bool) {
-        _ = try? db.run("UPDATE chats SET pinned = ?, updated_at = ? WHERE id = ?",
-                        [.int(pinned ? 1 : 0), .real(Date().timeIntervalSince1970), .int(id)])
+        do {
+            _ = try db.run("UPDATE chats SET pinned = ?, updated_at = ? WHERE id = ?",
+                           [.int(pinned ? 1 : 0), .real(Date().timeIntervalSince1970), .int(id)])
+        } catch {
+            errorText = L.tf("Failed to save: %@", error.localizedDescription)
+        }
         reloadChats()
     }
 
     /// «شروع از نو»: پیام‌ها پاک می‌شوند ولی چت (و عنوانش) می‌ماند
     func clearMessages(_ id: Int64) {
-        _ = try? db.run("DELETE FROM chat_messages WHERE chat_id = ?", [.int(id)])
-        _ = try? db.run("UPDATE chats SET updated_at = ? WHERE id = ?",
-                        [.real(Date().timeIntervalSince1970), .int(id)])
+        do {
+            _ = try db.run("DELETE FROM chat_messages WHERE chat_id = ?", [.int(id)])
+            _ = try db.run("UPDATE chats SET updated_at = ? WHERE id = ?",
+                           [.real(Date().timeIntervalSince1970), .int(id)])
+        } catch {
+            errorText = L.tf("Failed to delete: %@", error.localizedDescription)
+        }
         if selectedId == id { messages = [] }
         reloadChats()
     }
 
     func delete(_ id: Int64) {
-        _ = try? db.run("DELETE FROM chat_messages WHERE chat_id = ?", [.int(id)])
-        _ = try? db.run("DELETE FROM chats WHERE id = ?", [.int(id)])
+        do {
+            _ = try db.run("DELETE FROM chat_messages WHERE chat_id = ?", [.int(id)])
+            _ = try db.run("DELETE FROM chats WHERE id = ?", [.int(id)])
+        } catch {
+            errorText = L.tf("Failed to delete: %@", error.localizedDescription)
+        }
         if selectedId == id {
             reloadChats()
             selectedId = chats.first?.id
@@ -174,8 +196,12 @@ final class ChatStore: ObservableObject {
     }
 
     func deleteAll() {
-        _ = try? db.run("DELETE FROM chat_messages")
-        _ = try? db.run("DELETE FROM chats")
+        do {
+            _ = try db.run("DELETE FROM chat_messages")
+            _ = try db.run("DELETE FROM chats")
+        } catch {
+            errorText = L.tf("Failed to delete: %@", error.localizedDescription)
+        }
         chats = []
         messages = []
         selectedId = nil
@@ -218,11 +244,19 @@ final class ChatStore: ObservableObject {
            let text = String(data: data, encoding: .utf8) {
             citationsJSON = .text(text)
         }
-        let id = (try? db.run(
-            "INSERT INTO chat_messages(chat_id, role, content, citations, created_at) VALUES (?, ?, ?, ?, ?)",
-            [.int(chatId), .text(role.rawValue), .text(content), citationsJSON, .real(now)]
-        )) ?? 0
-        _ = try? db.run("UPDATE chats SET updated_at = ? WHERE id = ?", [.real(now), .int(chatId)])
+        let id: Int64
+        do {
+            id = try db.run(
+                "INSERT INTO chat_messages(chat_id, role, content, citations, created_at) VALUES (?, ?, ?, ?, ?)",
+                [.int(chatId), .text(role.rawValue), .text(content), citationsJSON, .real(now)]
+            )
+            _ = try db.run("UPDATE chats SET updated_at = ? WHERE id = ?", [.real(now), .int(chatId)])
+        } catch {
+            errorText = L.tf("Failed to save: %@", error.localizedDescription)
+            return ChatMessage(id: 0, chatId: chatId, role: role,
+                               content: content, citations: citations,
+                               createdAt: Date(timeIntervalSince1970: now))
+        }
 
         let message = ChatMessage(id: id, chatId: chatId, role: role,
                                   content: content, citations: citations,
@@ -246,12 +280,16 @@ final class ChatStore: ObservableObject {
                      note: String = "",
                      chatId: Int64? = nil) {
         let now = Date().timeIntervalSince1970
-        _ = try? db.run(
-            "INSERT INTO decisions(bookmark_id, chat_id, verdict, note, created_at) VALUES (?, ?, ?, ?, ?)",
-            [.int(bookmarkId),
-             chatId.map { SQLValue.int($0) } ?? .null,
-             .text(verdict.rawValue), .text(note), .real(now)]
-        )
+        do {
+            _ = try db.run(
+                "INSERT INTO decisions(bookmark_id, chat_id, verdict, note, created_at) VALUES (?, ?, ?, ?, ?)",
+                [.int(bookmarkId),
+                 chatId.map { SQLValue.int($0) } ?? .null,
+                 .text(verdict.rawValue), .text(note), .real(now)]
+            )
+        } catch {
+            errorText = L.tf("Failed to save: %@", error.localizedDescription)
+        }
         decisionsVersion += 1
     }
 

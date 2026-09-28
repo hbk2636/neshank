@@ -141,7 +141,7 @@ struct DetailView: View {
                 .buttonStyle(.borderless)
                 .help(L.tr("Search in nodes"))
 
-                Label(L.tf("%@ nodes", Digits.fa(map.nodeCount)), systemImage: "circle.grid.3x3")
+                Label(L.tf("%@ nodes", Digits.fa(map.displayNodeCount)), systemImage: "circle.grid.3x3")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize()

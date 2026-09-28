@@ -12,6 +12,7 @@ struct MindMapRecord: Identifiable, Hashable {
     var rawMarkdown: String
     var model: String
     var language: String
+    var nodeCount: Int
     var createdAt: Date
     var updatedAt: Date
 
@@ -25,14 +26,23 @@ struct MindMapRecord: Identifiable, Hashable {
         rawMarkdown = row.textOrEmpty("raw_markdown")
         model = row.textOrEmpty("model")
         language = row.textOrEmpty("language")
+        nodeCount = Int(row.int("node_count") ?? 0)
         createdAt = Date(timeIntervalSince1970: row.double("created_at") ?? 0)
         updatedAt = Date(timeIntervalSince1970: row.double("updated_at") ?? 0)
     }
 
     var displayTitle: String { title.trimmed.isEmpty ? sourceURL : title.trimmed }
     var domain: String { URLNormalizer.domain(ofString: sourceURL) }
-    var nodeCount: Int {
-        guard let data = mindMapJSON.data(using: .utf8),
+
+    /// شمارش گره برای نمایش: ستون ذخیره‌شده اصل است؛ اگر صفر بود ولی JSON موجود است
+    /// (مثلاً رکورد تازه پیش از نوشتن)، از روی JSON شمرده می‌شود.
+    var displayNodeCount: Int {
+        nodeCount > 0 ? nodeCount : Self.countNodes(in: mindMapJSON)
+    }
+
+    /// شمارش گره‌ها از روی JSON — برای بک‌فیل مهاجرت و fallback
+    static func countNodes(in json: String) -> Int {
+        guard let data = json.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let root = object["root"] as? [String: Any] else { return 0 }
         var count = 0

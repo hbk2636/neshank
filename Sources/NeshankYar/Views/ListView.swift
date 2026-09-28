@@ -762,7 +762,7 @@ struct MindMapRecordRow: View {
                 HStack(spacing: 6) {
                     Text(record.domain.isEmpty ? record.sourceURL : record.domain)
                     Text("·")
-                    Text(L.tf("%@ nodes", Digits.fa(record.nodeCount)))
+                    Text(L.tf("%@ nodes", Digits.fa(record.displayNodeCount)))
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
