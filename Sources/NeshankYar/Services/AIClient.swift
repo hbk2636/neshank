@@ -1,6 +1,41 @@
 import Foundation
+import Security
 
 // MARK: - پیکربندی دستیار هوشمند
+
+/// نگه‌داری مقدار کوتاه در Keychain (کلید API به‌جای متن ساده در UserDefaults).
+enum KeychainStore {
+    static func read(service: String, account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlock,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne
+        ]
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// مقدار خالی = حذف آیتم. true یعنی عملیات Keychain موفق بود.
+    @discardableResult
+    static func write(_ value: String, service: String, account: String) -> Bool {
+        let base: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account
+        ]
+        SecItemDelete(base as CFDictionary)
+        guard !value.isEmpty else { return true }
+        var attrs = base
+        attrs[kSecValueData as String] = Data(value.utf8)
+        attrs[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlock
+        return SecItemAdd(attrs as CFDictionary, nil) == errSecSuccess
+    }
+}
 
 /// تنظیمات اتصال دستیار (پروتکل سازگار با OpenAI).
 ///
@@ -11,12 +46,17 @@ struct AIConfig: Sendable {
     static let defaultModel = "deepseek-v4.1-flash"
 
     static let baseURLKey = "aiBaseURL"
+    /// کلید API دیگر در UserDefaults ذخیره نمی‌شود؛ این کلید فقط برای مهاجرتِ
+    /// یک‌بارهٔ نسخه‌های قدیمی به Keychain استفاده می‌شود.
     static let apiKeyKey = "aiApiKey"
     static let modelKey = "aiModel"
     static let profileKey = "aiProfile"
     /// حالت انتخاب مدل: "list" = از فهرست سرویس، "manual" = ورود دستی
     static let modelModeKey = "aiModelMode"
     static let modelsCacheKey = "aiModelsCache"
+
+    static let keychainService = "com.gozaresh.neshankyar.assistant"
+    static let keychainAccount = "api-key"
 
     var baseURL: String
     var apiKey: String
@@ -45,9 +85,17 @@ struct AIConfig: Sendable {
 
     static func load() -> AIConfig {
         let d = UserDefaults.standard
+        var key = KeychainStore.read(service: keychainService, account: keychainAccount) ?? ""
+        if key.isEmpty, let legacy = d.string(forKey: apiKeyKey), !legacy.isEmpty {
+            // مهاجرت یک‌باره: کلید متنی قدیمی به Keychain می‌رود و از prefs حذف می‌شود
+            if KeychainStore.write(legacy, service: keychainService, account: keychainAccount) {
+                d.removeObject(forKey: apiKeyKey)
+                key = legacy
+            }
+        }
         return AIConfig(
             baseURL: d.string(forKey: baseURLKey) ?? defaultBaseURL,
-            apiKey: d.string(forKey: apiKeyKey) ?? "",
+            apiKey: key,
             model: d.string(forKey: modelKey) ?? defaultModel,
             profile: d.string(forKey: profileKey) ?? ""
         )
@@ -56,9 +104,14 @@ struct AIConfig: Sendable {
     func save() {
         let d = UserDefaults.standard
         d.set(baseURL, forKey: Self.baseURLKey)
-        d.set(apiKey, forKey: Self.apiKeyKey)
         d.set(model, forKey: Self.modelKey)
         d.set(profile, forKey: Self.profileKey)
+        if KeychainStore.write(apiKey, service: Self.keychainService, account: Self.keychainAccount) {
+            d.removeObject(forKey: Self.apiKeyKey)   // نسخهٔ متنی قدیمی پاک شود
+        } else {
+            // Keychain در دسترس نبود (محیط نامتعارف) — مثل قبل در prefs می‌ماند تا عملکرد عقب نرود
+            d.set(apiKey, forKey: Self.apiKeyKey)
+        }
     }
 }
 
