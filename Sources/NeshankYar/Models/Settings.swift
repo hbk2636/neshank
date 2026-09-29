@@ -144,12 +144,19 @@ enum HotKeyChoice: String, CaseIterable, Identifiable {
 
 /// دسترسی سراسری به تنظیمات ظاهری (برای پنجره‌های فرعی)
 enum AppTheme {
+    /// تمپلیت انتخابی پنجرهٔ اصلی (پنجره‌های فرعی هم از آن پیروی می‌کنند)
+    static var selected: UITheme {
+        UITheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .classic
+    }
+
     static var accent: Color? {
-        AccentPreset(rawValue: UserDefaults.standard.string(forKey: "accentColor") ?? "")?.color
+        selected.accentColor
+            ?? AccentPreset(rawValue: UserDefaults.standard.string(forKey: "accentColor") ?? "")?.color
     }
 
     static var appearance: ColorScheme? {
-        AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: "appearance") ?? "")?.scheme
+        selected.scheme
+            ?? AppearanceChoice(rawValue: UserDefaults.standard.string(forKey: "appearance") ?? "")?.scheme
     }
 }
 

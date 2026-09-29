@@ -49,6 +49,18 @@ for e in L10n.core {
 check("دیکشنری بومی‌سازی سالم (\(L10n.core.count) کلید)", dictProblems.isEmpty, dictProblems.prefix(3).joined(separator: " | "))
 check("fallback به انگلیسی", L.tr("definitely-not-a-key-xyz") == "definitely-not-a-key-xyz")
 
+// MARK: ۲.۵) تمپلیت‌های ظاهری
+
+check("۶ تمپلیت تعریف شده", UITheme.allCases.count == 6, "\(UITheme.allCases.count)")
+check("شناسه‌های تم یکتا", Set(UITheme.allCases.map(\.id)).count == 6)
+check("کلاسیک بدون تحمیل اسکیم", UITheme.classic.scheme == nil)
+var themeOK = true
+for t in UITheme.allCases where t != .classic {
+    if t.background == nil || t.windowBaseNS == nil || t.accentColor == nil || t.scheme == nil { themeOK = false }
+}
+check("تم‌های غیر کلاسیک پالت کامل دارند", themeOK)
+check("برچسب تم‌ها ترجمه دارند", UITheme.allCases.allSatisfy { !$0.label.isEmpty && $0.label != $0.rawValue })
+
 // MARK: ۳) دیتابیس: باز شدن بدون خطا + مهاجرت
 
 let lib = Library(databasePath: testDBPath)

@@ -11,6 +11,7 @@ struct SettingsView: View {
     @AppStorage("hotkey") private var hotkeyRaw = HotKeyChoice.space.rawValue
     @AppStorage("appearance") private var appearanceRaw = AppearanceChoice.system.rawValue
     @AppStorage("accentColor") private var accentRaw = AccentPreset.system.rawValue
+    @AppStorage("appTheme") private var themeRaw = UITheme.classic.rawValue
     @AppStorage("density") private var densityRaw = Density.comfortable.rawValue
 
     @AppStorage(AIConfig.baseURLKey) private var aiBaseURL = AIConfig.defaultBaseURL
@@ -31,6 +32,7 @@ struct SettingsView: View {
     @State private var aiOK = false
 
     private let accentColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
+    private let themeColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
 
     /// فهرست نمایشی انتخابگر مدل: مدل‌های سرویس + مقدار فعلی (اگر دستی و خارج از فهرست باشد)
     private var displayModels: [String] {
@@ -209,6 +211,61 @@ struct SettingsView: View {
             }
 
             Section(L.tr("Appearance")) {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L.tr("Theme"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    LazyVGrid(columns: themeColumns, spacing: 12) {
+                        ForEach(UITheme.allCases) { item in
+                            Button {
+                                themeRaw = item.rawValue
+                            } label: {
+                                VStack(spacing: 5) {
+                                    RoundedRectangle(cornerRadius: 9)
+                                        .fill(item.background.map { AnyShapeStyle($0) }
+                                              ?? AnyShapeStyle(Color(nsColor: .controlBackgroundColor)))
+                                        .frame(height: 46)
+                                        .overlay(alignment: .bottomLeading) {
+                                            Circle()
+                                                .fill(item.accentColor ?? Color(nsColor: .controlAccentColor))
+                                                .frame(width: 14, height: 14)
+                                                .padding(6)
+                                        }
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 9).strokeBorder(
+                                                themeRaw == item.id
+                                                    ? Color.primary.opacity(0.75)
+                                                    : Color.primary.opacity(0.15),
+                                                lineWidth: themeRaw == item.id ? 2 : 1
+                                            )
+                                        )
+                                        .overlay(alignment: .topTrailing) {
+                                            if themeRaw == item.id {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .font(.system(size: 13))
+                                                    .foregroundStyle(.primary)
+                                                    .padding(5)
+                                            }
+                                        }
+                                    Text(item.label)
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .help(item.label)
+                        }
+                    }
+
+                    if UITheme(rawValue: themeRaw) != .classic {
+                        Text(L.tr("The theme sets its own light/dark look; “Light Mode” applies to Classic only."))
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+
                 Picker(L.tr("Light Mode"), selection: $appearanceRaw) {
                     ForEach(AppearanceChoice.allCases) { item in
                         Text(item.label).tag(item.rawValue)

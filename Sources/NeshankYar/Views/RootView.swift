@@ -22,13 +22,44 @@ struct RootView: View {
     @AppStorage("paneDetailWidth") private var detailWidth: Double = 520
     @AppStorage("appearance") private var appearanceRaw = AppearanceChoice.system.rawValue
     @AppStorage("accentColor") private var accentRaw = AccentPreset.system.rawValue
+    @AppStorage("appTheme") private var themeRaw = UITheme.classic.rawValue
 
     private var appearance: AppearanceChoice {
         AppearanceChoice(rawValue: appearanceRaw) ?? .system
     }
 
+    private var theme: UITheme {
+        UITheme(rawValue: themeRaw) ?? .classic
+    }
+
+    /// پس‌زمینهٔ گرادیانی تم (classic = بدون پس‌زمینه) — جدا از body برای سرعت کامپایل
+    @ViewBuilder
+    private var themeBackground: some View {
+        if let gradient = theme.background {
+            gradient.ignoresSafeArea()
+        }
+    }
+
     private var accent: Color? {
-        AccentPreset(rawValue: accentRaw)?.color
+        theme.accentColor ?? AccentPreset(rawValue: accentRaw)?.color
+    }
+
+    /// اعمال رنگ پایه و حالت روی پنجرهٔ واقعی (chrome و لیست‌های پشت محتوا)
+    private struct WindowThemeApplier: NSViewRepresentable {
+        let base: NSColor?
+        let scheme: ColorScheme?
+
+        func makeNSView(context: Context) -> NSView { NSView() }
+
+        func updateNSView(_ nsView: NSView, context: Context) {
+            nsView.window?.backgroundColor = base
+            switch scheme {
+            case .dark: nsView.window?.appearance = NSAppearance(named: .darkAqua)
+            case .light: nsView.window?.appearance = NSAppearance(named: .aqua)
+            case nil: nsView.window?.appearance = nil
+            case .some: break
+            }
+        }
     }
 
     var body: some View {
@@ -48,6 +79,7 @@ struct RootView: View {
             HStack(alignment: .top, spacing: 0) {
                 // راست: سایدبار
                 SidebarView()
+                    .modifier(ThemedScrollBackground())
                     .frame(width: shownSidebar)
 
                 PaneDivider(
@@ -59,6 +91,7 @@ struct RootView: View {
 
                 // میانی: فهرست نشانک‌ها — کل فضای باقی‌مانده را می‌گیرد
                 ListView(selection: $selection)
+                    .modifier(ThemedScrollBackground())
                     .frame(minWidth: listMin, maxWidth: .infinity, maxHeight: .infinity)
 
                 // چپ: جزئیات/مرورگر — فقط وقتی نشانکی انتخاب شده (با کلیک باز،
@@ -72,6 +105,7 @@ struct RootView: View {
                     )
 
                     DetailView()
+                        .modifier(ThemedScrollBackground())
                         .frame(width: shownDetail)
                         .transition(.opacity)
                 }
@@ -81,10 +115,14 @@ struct RootView: View {
                        value: lib.selectedId == nil && lib.selectedMindMapId == nil)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .environment(\.appTheme, theme)
+        // پس‌زمینهٔ گرادیانی تم؛ classic پس‌زمینه ندارد (Vibrancy سیستمی)
+        .background(themeBackground)
+        .background(WindowThemeApplier(base: theme.windowBaseNS, scheme: theme.scheme))
         .environment(\.layoutDirection, L.direction)
         .frame(minWidth: 1000, minHeight: 640)
         .tint(accent)
-        .preferredColorScheme(appearance.scheme)
+        .preferredColorScheme(theme.scheme ?? appearance.scheme)
         // رها کردن لینک از مرورگر/هر برنامه‌ای روی پنجره
         .onDrop(of: [.url, .fileURL, .plainText], isTargeted: $dropTargeted, perform: handleDrop)
         .overlay {
