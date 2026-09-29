@@ -23,9 +23,6 @@ struct RootView: View {
     @AppStorage("appearance") private var appearanceRaw = AppearanceChoice.system.rawValue
     @AppStorage("accentColor") private var accentRaw = AccentPreset.system.rawValue
     @AppStorage("appTheme") private var themeRaw = UITheme.classic.rawValue
-    @AppStorage("appLayout") private var layoutRaw = UILayout.classic.rawValue
-    /// سایدبار شناور در چیدمان مینیمال
-    @State private var showZenSidebar = false
 
     private var appearance: AppearanceChoice {
         AppearanceChoice(rawValue: appearanceRaw) ?? .system
@@ -33,10 +30,6 @@ struct RootView: View {
 
     private var theme: UITheme {
         UITheme(rawValue: themeRaw) ?? .classic
-    }
-
-    private var layout: UILayout {
-        UILayout(rawValue: layoutRaw) ?? .classic
     }
 
     /// پس‌زمینهٔ گرادیانی تم (classic = بدون پس‌زمینه) — جدا از body برای سرعت کامپایل
@@ -49,37 +42,6 @@ struct RootView: View {
 
     private var accent: Color? {
         theme.accentColor ?? AccentPreset(rawValue: accentRaw)?.color
-    }
-
-    private var hasDetail: Bool {
-        lib.selectedId != nil || (lib.scope == .mindMaps && lib.selectedMindMapId != nil)
-    }
-
-    /// نوار بالای چیدمان مینیمال: دکمهٔ بازکردن سایدبارِ شناور
-    private var zenBar: some View {
-        HStack(spacing: 10) {
-            Button {
-                showZenSidebar = true
-            } label: {
-                Label(L.tr("Library"), systemImage: "sidebar.left")
-                    .labelStyle(.iconOnly)
-            }
-            .buttonStyle(.borderless)
-            .help(L.tr("Library"))
-            .popover(isPresented: $showZenSidebar, arrowEdge: .bottom) {
-                SidebarView()
-                    .modifier(ThemedScrollBackground())
-                    .frame(width: 260, height: 580)
-            }
-
-            Text(L.tr("Library"))
-                .font(.headline)
-                .foregroundStyle(.secondary)
-
-            Spacer()
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 7)
     }
 
     /// اعمال رنگ پایه و حالت روی پنجرهٔ واقعی (chrome و لیست‌های پشت محتوا)
@@ -114,55 +76,38 @@ struct RootView: View {
             let shownSidebar = min(max(sidebarWidth, 180), sidebarMax)
             let shownDetail = min(max(detailWidth, detailMin), detailMax)
 
-            VStack(spacing: 0) {
-                // چیدمان مینیمال: نوار باریک با دکمهٔ بازکردن سایدبار شناور
-                if !layout.showsSidebar {
-                    zenBar
-                }
+            HStack(alignment: .top, spacing: 0) {
+                // راست: سایدبار
+                SidebarView()
+                    .modifier(ThemedScrollBackground())
+                    .frame(width: shownSidebar)
 
-                HStack(alignment: .top, spacing: 0) {
-                    // راست: سایدبار (در مینیمال حذف است)
-                    if layout.showsSidebar {
-                        SidebarView()
-                            .modifier(ThemedScrollBackground())
-                            .frame(width: shownSidebar)
+                PaneDivider(
+                    width: $sidebarWidth,
+                    range: 180...sidebarMax,
+                    multiplier: 1,
+                    reset: 240
+                )
 
-                        PaneDivider(
-                            width: $sidebarWidth,
-                            range: 180...sidebarMax,
-                            multiplier: 1,
-                            reset: 240
-                        )
-                    }
+                // میانی: فهرست نشانک‌ها — کل فضای باقی‌مانده را می‌گیرد
+                ListView(selection: $selection)
+                    .modifier(ThemedScrollBackground())
+                    .frame(minWidth: listMin, maxWidth: .infinity, maxHeight: .infinity)
 
-                    if layout.detailReplacesContent && hasDetail {
-                        // خوانش‌گر: انتخاب، تمام پنجرهٔ میانی+پیش‌نمایش را می‌گیرد
-                        DetailView()
-                            .modifier(ThemedScrollBackground())
-                            .frame(minWidth: listMin + detailMin, maxWidth: .infinity, maxHeight: .infinity)
-                            .transition(.opacity)
-                    } else {
-                        // میانی: فهرست نشانک‌ها — کل فضای باقی‌مانده را می‌گیرد
-                        ListView(selection: $selection)
-                            .modifier(ThemedScrollBackground())
-                            .frame(minWidth: listMin, maxWidth: .infinity, maxHeight: .infinity)
+                // چپ: جزئیات/مرورگر — فقط وقتی نشانکی انتخاب شده (با کلیک باز،
+                // با ✕ یا کلیک فضای خالی بسته می‌شود)
+                if lib.selectedId != nil || (lib.scope == .mindMaps && lib.selectedMindMapId != nil) {
+                    PaneDivider(
+                        width: $detailWidth,
+                        range: detailMin...detailMax,
+                        multiplier: -1,
+                        reset: 520
+                    )
 
-                        // چپ: جزئیات/مرورگر — فقط وقتی نشانکی انتخاب شده (با کلیک باز،
-                        // با ✕ یا کلیک فضای خالی بسته می‌شود)
-                        if hasDetail {
-                            PaneDivider(
-                                width: $detailWidth,
-                                range: detailMin...detailMax,
-                                multiplier: -1,
-                                reset: 520
-                            )
-
-                            DetailView()
-                                .modifier(ThemedScrollBackground())
-                                .frame(width: shownDetail)
-                                .transition(.opacity)
-                        }
-                    }
+                    DetailView()
+                        .modifier(ThemedScrollBackground())
+                        .frame(width: shownDetail)
+                        .transition(.opacity)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -171,7 +116,6 @@ struct RootView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .environment(\.appTheme, theme)
-        .environment(\.uiLayout, layout)
         // پس‌زمینهٔ گرادیانی تم؛ classic پس‌زمینه ندارد (Vibrancy سیستمی)
         .background(themeBackground)
         .background(WindowThemeApplier(base: theme.windowBaseNS, scheme: theme.scheme))
