@@ -3,6 +3,7 @@ import AppKit
 
 struct ListView: View {
     @ObservedObject private var lib = Library.shared
+    @Environment(\.uiLayout) private var layout
     @Binding private var selection: Set<Bookmark.ID>
     @FocusState private var searchFocused: Bool
 
@@ -254,7 +255,7 @@ struct ListView: View {
         } else if lib.results.isEmpty {
             emptyState
         } else {
-            switch lib.viewMode {
+            switch layout.forcedViewMode ?? lib.viewMode {
             case .list:
                 listContent
             case .cards:
@@ -602,6 +603,7 @@ struct ListView: View {
         }
 
         ToolbarItem {
+            if layout.forcedViewMode == nil {
             Picker(L.tr("View"), selection: $lib.viewMode) {
                 ForEach(Library.ViewMode.allCases) { mode in
                     Image(systemName: mode.icon)
@@ -612,6 +614,7 @@ struct ListView: View {
             .pickerStyle(.segmented)
             .frame(width: 118)
             .help(L.tf("List view mode: %@", lib.viewMode.label))
+            }
         }
 
         ToolbarItem {
@@ -785,10 +788,11 @@ struct MindMapRecordRow: View {
 
 struct BookmarkRow: View {
     @ObservedObject private var lib = Library.shared
+    @Environment(\.uiLayout) private var layout
     @AppStorage("density") private var densityRaw = Density.comfortable.rawValue
     let bookmark: Bookmark
 
-    private var density: Density { Density(rawValue: densityRaw) ?? .comfortable }
+    private var density: Density { layout.forcedDensity ?? (Density(rawValue: densityRaw) ?? .comfortable) }
 
     var body: some View {
         HStack(spacing: 10) {

@@ -61,6 +61,17 @@ for t in UITheme.allCases where t != .classic {
 check("تم‌های غیر کلاسیک پالت کامل دارند", themeOK)
 check("برچسب تم‌ها ترجمه دارند", UITheme.allCases.allSatisfy { !$0.label.isEmpty && $0.label != $0.rawValue })
 
+// MARK: ۲.۶) چیدمان‌های رابط
+
+check("۵ چیدمان تعریف شده", UILayout.allCases.count == 5, "\(UILayout.allCases.count)")
+check("شناسه‌های چیدمان یکتا", Set(UILayout.allCases.map(\.id)).count == 5)
+check("کلاسیک حالت اجباری ندارد", UILayout.classic.forcedViewMode == nil && UILayout.classic.forcedDensity == nil)
+check("خوانش‌گر = کارت‌ها + تمام‌عرض", UILayout.reader.forcedViewMode == .cards && UILayout.reader.detailReplacesContent)
+check("فشرده = فهرست + چگالی compact", UILayout.compact.forcedViewMode == .list && UILayout.compact.forcedDensity == .compact)
+check("گالری = شبکه‌ای", UILayout.gallery.forcedViewMode == .boxes)
+check("مینیمال بدون سایدبار", UILayout.zen.showsSidebar == false)
+check("برچسب و توضیح چیدمان‌ها کامل", UILayout.allCases.allSatisfy { !$0.label.isEmpty && !$0.caption.isEmpty && $0.label != $0.rawValue })
+
 // MARK: ۳) دیتابیس: باز شدن بدون خطا + مهاجرت
 
 let lib = Library(databasePath: testDBPath)

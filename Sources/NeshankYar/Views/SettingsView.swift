@@ -12,6 +12,7 @@ struct SettingsView: View {
     @AppStorage("appearance") private var appearanceRaw = AppearanceChoice.system.rawValue
     @AppStorage("accentColor") private var accentRaw = AccentPreset.system.rawValue
     @AppStorage("appTheme") private var themeRaw = UITheme.classic.rawValue
+    @AppStorage("appLayout") private var layoutRaw = UILayout.classic.rawValue
     @AppStorage("density") private var densityRaw = Density.comfortable.rawValue
 
     @AppStorage(AIConfig.baseURLKey) private var aiBaseURL = AIConfig.defaultBaseURL
@@ -211,6 +212,16 @@ struct SettingsView: View {
             }
 
             Section(L.tr("Appearance")) {
+                Picker(L.tr("Layout"), selection: $layoutRaw) {
+                    ForEach(UILayout.allCases) { item in
+                        Text(item.label).tag(item.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+                Text(UILayout(rawValue: layoutRaw)?.caption ?? "")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+
                 VStack(alignment: .leading, spacing: 10) {
                     Text(L.tr("Theme"))
                         .font(.caption)

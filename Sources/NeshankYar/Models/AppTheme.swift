@@ -99,3 +99,49 @@ enum UITheme: String, CaseIterable, Identifiable {
         Color(red: rgb.0 / 255, green: rgb.1 / 255, blue: rgb.2 / 255)
     }
 }
+
+// MARK: - چیدمان‌های رابط (۵ مدل UI)
+
+/// هر چیدمان ساختار پنجره را عوض می‌کند: تعداد پنجره‌ها، نحوهٔ نمایش محتوا و فشردگی.
+enum UILayout: String, CaseIterable, Identifiable {
+    case classic, reader, compact, gallery, zen
+
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .classic: return L.tr("Classic")
+        case .reader: return L.tr("Reader")
+        case .compact: return L.tr("Compact Layout")
+        case .gallery: return L.tr("Gallery")
+        case .zen: return L.tr("Minimal")
+        }
+    }
+
+    var caption: String {
+        switch self {
+        case .classic: return L.tr("Three panes: sidebar, list, preview.")
+        case .reader: return L.tr("Selection opens a full-width reading view.")
+        case .compact: return L.tr("Dense single-line rows — built for keyboard speed.")
+        case .gallery: return L.tr("Large image cards.")
+        case .zen: return L.tr("No sidebar; open scopes from the corner button.")
+        }
+    }
+
+    /// نمایش اجباری محتوا (nil = انتخاب خودِ کاربر مثل قبل)
+    var forcedViewMode: Library.ViewMode? {
+        switch self {
+        case .classic: return nil
+        case .reader, .zen: return .cards
+        case .compact: return .list
+        case .gallery: return .boxes
+        }
+    }
+
+    var forcedDensity: Density? { self == .compact ? .compact : nil }
+
+    var showsSidebar: Bool { self != .zen }
+
+    /// خوانش‌گر: انتخاب، پنجرهٔ میانی را کاملاً می‌گیرد
+    var detailReplacesContent: Bool { self == .reader }
+}
