@@ -3,7 +3,10 @@ import Security
 
 // MARK: - پیکربندی دستیار هوشمند
 
-/// نگه‌داری مقدار کوتاه در Keychain (کلید API به‌جای متن ساده در UserDefaults).
+/// ابزار Keychain — امروز فقط برای «مهاجرت خروج» از نسخهٔ ۱.۴ استفاده می‌شود.
+/// با امضای ad-hoc (تغییر هش در هر بیلد) Keychain مدام پنجرهٔ رمز باز می‌کند،
+/// برای همین کلید API در prefs کاربر نگه داشته می‌شود؛ اگر روزی با Developer ID
+/// امضا/notarize شد، ذخیرهٔ Keychain با همین ابزار دوباره فعال می‌شود.
 enum KeychainStore {
     static func read(service: String, account: String) -> String? {
         let query: [String: Any] = [
@@ -95,15 +98,16 @@ struct AIConfig: Sendable {
 
     static func load() -> AIConfig {
         let d = UserDefaults.standard
-        var key = KeychainStore.read(service: keychainService, account: keychainAccount) ?? ""
-        // نسخهٔ prefs همیشه از مسیرِ fallbackِ ذخیره می‌آید؛ پس اگر موجود باشد و با
-        // Keychain فرق کند، تازه‌تر است و باید برنده شود — وگرنه کلید تازهٔ کاربر
-        // برای همیشه زیر کلید کهنهٔ Keychain دفن می‌شد (باگ واقعی نسخهٔ ۱.۴).
-        if let stored = d.string(forKey: apiKeyKey), !stored.isEmpty, stored != key {
-            key = stored
-            // خودترمیم: اگر نوشتن Keychain ممکن شد، prefs پاک می‌شود تا فقط یک منبع بماند
-            if KeychainStore.write(stored, service: keychainService, account: keychainAccount) {
-                d.removeObject(forKey: apiKeyKey)
+        var key = d.string(forKey: apiKeyKey) ?? ""
+        if key.isEmpty {
+            // مهاجرت یک‌باره از نسخهٔ ۱.۴ که کلید موقتاً در Keychain بود.
+            // آیتم ناموجود بدون هیچ پنجره‌ای رد می‌شود؛ فقط اگر واقعاً آیتمی باشد
+            // (نصب قدیمی) ممکن است سیستم یک بار مجوز بخواهد و بلافاصله حذف می‌شود.
+            if let migrated = KeychainStore.read(service: keychainService, account: keychainAccount),
+               !migrated.isEmpty {
+                key = migrated
+                d.set(migrated, forKey: apiKeyKey)
+                KeychainStore.delete(service: keychainService, account: keychainAccount)
             }
         }
         return AIConfig(
@@ -117,16 +121,13 @@ struct AIConfig: Sendable {
     func save() {
         let d = UserDefaults.standard
         d.set(baseURL, forKey: Self.baseURLKey)
+        d.set(apiKey, forKey: Self.apiKeyKey)
         d.set(model, forKey: Self.modelKey)
         d.set(profile, forKey: Self.profileKey)
-        if KeychainStore.write(apiKey, service: Self.keychainService, account: Self.keychainAccount) {
-            d.removeObject(forKey: Self.apiKeyKey)
-        } else {
-            // Keychain در دسترس نیست: آیتم کهنهٔ Keychain حذف می‌شود تا prefs تنها
-            // منبع بماند و load نسخهٔ تازه را ببیند (نه کلید مردهٔ قبلی را).
-            KeychainStore.delete(service: Self.keychainService, account: Self.keychainAccount)
-            d.set(apiKey, forKey: Self.apiKeyKey)
-        }
+        // Keychain با امضای ad-hoc (تغییر در هر بیلد) مدام پنجرهٔ رمز باز می‌کند و
+        // کاربر را می‌ترساند؛ کلید مثل بقیهٔ تنظیمات در prefs کاربر می‌ماند و
+        // آیتم احتمالی Keychain پاک می‌شود تا دیگر هرگز درخواست رمز نداشته باشیم.
+        KeychainStore.delete(service: Self.keychainService, account: Self.keychainAccount)
     }
 }
 
