@@ -17,7 +17,7 @@
     <a href="https://github.com/hbk2636/neshank/actions/workflows/ci.yml"><img src="https://github.com/hbk2636/neshank/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
   </p>
-  <p>English · <a href="#chinese">简体中文</a> · <a href="#persian">فارسی</a> · <a href="../../releases/latest">⬇️ Download v1</a></p>
+  <p>English · <a href="#chinese">简体中文</a> · <a href="#persian">فارسی</a> · <a href="#russian">Русский</a> · <a href="../../releases/latest">⬇️ Download v1</a></p>
 </div>
 
 Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for macOS** built with **SwiftUI + SQLite** — no Electron, no cloud, no account, no Xcode required to build. It replaces a folder of scattered links with a fast, offline-first library where every saved page is **archived, searchable and ready to talk to**.
@@ -164,7 +164,7 @@ Local **SQLite** library; archived page text, screenshots and favicon caches sta
 
 ## #️⃣ Tags & keywords
 
-`#macos` `#mac` `#apple` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#yt-dlp` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#local-first` `#offline-first` `#privacy` `#rtl` `#persian` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management` `#chinese` `#i18n`
+`#macos` `#mac` `#apple` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#yt-dlp` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#local-first` `#offline-first` `#privacy` `#rtl` `#persian` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management` `#chinese` `#russian` `#english` `#multilingual` `#i18n`
 
 <a id="chinese"></a>
 ## 简体中文
@@ -184,7 +184,7 @@ Local **SQLite** library; archived page text, screenshots and favicon caches sta
 
 **安装：** 从 [Releases](../../releases/latest) 下载 `Neshank-1.dmg` → 打开 → 拖入「应用程序」。首次启动请 **右键 → 打开**（ad-hoc 签名）。系统要求：**macOS 13+（Apple Silicon）**。
 
-[English](#english) · [فارسی](#persian)
+[English](#english) · [فارسی](#persian) · [Русский](#russian)
 
 ---
 
@@ -388,3 +388,24 @@ Scripts/run_tests.sh
 ### مجوز
 
 [MIT](./LICENSE) © hosein shahraki — ابزارها و کتابخانه‌های باندل‌شده مجوز خودشان را دارند.
+
+---
+
+## Русский
+
+**Neshank** — нативный, полностью офлайн **менеджер закладок для macOS** с AI-чатом, картой мыслей и встроенным видеозагрузчиком. Бесплатный, с открытым исходным кодом (MIT), SwiftUI + SQLite — для сборки Xcode не нужен.
+
+| Возможность | Описание |
+|---|---|
+| 📦 Быстрое добавление из меню строки | Сохранение ссылки в один клик; глобальная горячая клавиша **⌘⇧Space** вызывает панель быстрого добавления из любого приложения (без доступа к «Специальным возможностям») |
+| 🗂️ Организация и поиск | Папки, теги, **полнотекстовый поиск** (включая сохранённый текст страниц — SQLite FTS5), скриншоты страниц, проверка битых ссылок, корзина ⌘Z, импорт/экспорт Safari/Chrome/Firefox |
+| 🤖 AI-чат | Любой провайдер, совместимый с OpenAI `/v1` (OpenAI, OpenRouter, локальный **Ollama**) — вопросы по одной ссылке или всей библиотеке с нумерованными цитатами [1] [2]; настроено под **маленькие и бесплатные модели** |
+| 🧠 Ссылка → карта мыслей | **6 шаблонов вёрстки**, несколько цветовых тем, полностью офлайн; живые виды: карта / дерево / Markdown / JSON |
+| ⬇️ Встроенный загрузчик видео | **YouTube, Aparat, SoundCloud, TikTok, Dailymotion и ещё 1700+ сайтов** (встроенный yt-dlp), без настроек и без аккаунта; в v1 — до 720p |
+| 🔒 Приватность | Полностью офлайн: без аккаунта, без облака, без телеметрии — данные остаются на вашем Mac |
+
+**Горячие клавиши:** ⌘N — новая закладка · ⌘⇧Space — быстрое добавление (глобально) · ⌘K — палитра команд · ⌘⇧D — AI-ассистент · ⌘⇧T — «Сегодня» · ⌘⇧C — чат · ⌘F — поиск
+
+**Установка:** скачайте `Neshank-1.dmg` на странице [Releases](../../releases/latest) → откройте → перетащите в «Программы». При первом запуске: **правый клик → Открыть** (ad-hoc подпись). Требования: **macOS 13+, Apple Silicon**.
+
+[English](#english) · [简体中文](#chinese) · [فارسی](#persian)
