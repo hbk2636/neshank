@@ -14,6 +14,8 @@
     <img src="https://img.shields.io/badge/Swift%20%C2%B7%20SwiftUI-f05138" alt="Swift · SwiftUI">
     <img src="https://img.shields.io/badge/version-1.0-blue" alt="version 1.0">
     <img src="https://img.shields.io/badge/tests-57%20passed-brightgreen" alt="57 tests passed">
+    <img src="https://img.shields.io/github/downloads/hbk2636/neshank/total?label=downloads&color=blue" alt="total downloads">
+    <img src="https://img.shields.io/github/stars/hbk2636/neshank?label=stars&color=yellow" alt="GitHub stars">
     <a href="https://github.com/hbk2636/neshank/actions/workflows/ci.yml"><img src="https://github.com/hbk2636/neshank/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
   </p>
@@ -21,6 +23,12 @@
 </div>
 
 Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for macOS** built with **SwiftUI + SQLite** — no Electron, no cloud, no account, no Xcode required to build. It replaces a folder of scattered links with a fast, offline-first library where every saved page is **archived, searchable and ready to talk to**.
+
+<p align="center">
+  <img src="docs/assets/demo.gif" alt="Neshank demo — library, mind map, video downloader and AI chat" width="760">
+</p>
+
+<p align="center">⭐ <b>If Neshank saves you time, star the repo</b> — it takes a second and helps others find this free tool.</p>
 
 <table>
   <tr>
@@ -56,7 +64,7 @@ Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for ma
 
 **1. Capture in one gesture.** A tiny quick-add box lives in the macOS menu bar right next to the battery indicator — paste a link and it is saved without opening the main window. A global hotkey (default **⌘⇧Space**, remappable to ⌘⇧A / ⌘⇧H or disabled) summons a floating quick-add panel from *any* application, with no Accessibility permission required (Carbon HotKey). Press **⌘V** anywhere that is not a text field and the panel opens with your clipboard URL already filled. Drag a link out of any browser onto the window and the panel appears. Titles, descriptions, favicons and og-images are fetched automatically while you type nothing.
 
-**2. Organize without effort.** Hierarchical folders with inline expand/collapse, right-click subfolders and safe deletion that never orphans children; ten-color palette plus sixteen icons per folder; multi-tags; saved filters that remember search + scope + sort under a name; a duplicate finder that normalizes URLs (http/https, www, tracking parameters) and keeps the newest copy; grouping by domain, Persian calendar month or folder; multi-select bulk actions (move, tag, mark read, archive, delete); a30-day trash with **⌘Z** undo and an explicit “empty trash”; Netscape-format import and export for Safari, Chrome and Firefox.
+**2. Organize without effort.** Hierarchical folders with inline expand/collapse, right-click subfolders and safe deletion that never orphans children; ten-color palette plus sixteen icons per folder; multi-tags; saved filters that remember search + scope + sort under a name; a duplicate finder that normalizes URLs (http/https, www, tracking parameters) and keeps the newest copy; grouping by domain, Persian calendar month or folder; multi-select bulk actions (move, tag, mark read, archive, delete); a 30-day trash with **⌘Z** undo and an explicit “empty trash”; Netscape-format import and export for Safari, Chrome and Firefox.
 
 **3. Read forever.** When you save a page, its full text is archived locally (toggle-able), so even if the site dies, the words stay — and they are indexed: full-text search (SQLite **FTS5** with LIKE fallback) reaches *inside* page contents, not just titles and URLs. Neshank takes a real screenshot of each page with WKWebView so your library looks like a magazine, not a list (empty/error captures are detected automatically). A link checker batch-tests health (HEAD with GET fallback) and separates “dead” from “unknown”. Daily automatic backups, schema-versioned migrations that never wipe your data, and a manual backup button round out the safety story.
 
@@ -66,7 +74,7 @@ Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for ma
 
 **6. Download video — free, built-in.** A complete **video downloader for macOS** ships inside the app: **YouTube, Aparat, SoundCloud, TikTok, Dailymotion and 1,700+ other sites** through a bundled, auto-updating `yt-dlp` engine plus `ffmpeg` — zero setup, no account, no server, no paid API. Paste a URL (or click a YouTube bookmark, which is auto-detected as “ready to download”), watch live progress, and save to the folder you chose. Video metadata — title, channel, duration, thumbnail — fills a new bookmark without opening the browser, and subtitles can be archived into the library so your deep search and AI assistant can search *inside videos* too. Version 1 supports up to **720p**; higher qualities are on the roadmap. It is the best free YouTube downloader for Mac that also works as a generic video downloader — while you should always respect each site’s terms of service.
 
-**Multilingual — English, 简体中文, فارسی, Русский.** Built English-first: complete English UI and documentation, a full Simplified Chinese interface, Persian with a first-class right-to-left layout (Persian numerals, calendar month grouping) — and Russian. Every label lives in one localization dictionary with CI-checked health. Six full UI design shells let the app become whatever you want: a classic three-pane Mac browser-style library, a glassy Aurora tab-bar with big visual cards, a typographic Focus column, a widget Dashboard with tag clouds, an Atlas catalogue with serif typography, or an Orbit tile launcher — with10 accent colors, 6 gradient themes and light/dark on top.
+**Multilingual — English, 简体中文, فارسی, Русский.** Built English-first: complete English UI and documentation, a full Simplified Chinese interface, Persian with a first-class right-to-left layout (Persian numerals, calendar month grouping) — and Russian. Every label lives in one localization dictionary with CI-checked health. Six full UI design shells let the app become whatever you want: a classic three-pane Mac browser-style library, a glassy Aurora tab-bar with big visual cards, a typographic Focus column, a widget Dashboard with tag clouds, an Atlas catalogue with serif typography, or an Orbit tile launcher — with 10 accent colors, 6 gradient themes and light/dark on top.
 
 **Native, small, private.** Built with **SwiftUI + SQLite (WAL, FTS5)** — no Electron, no bundled browser runtime, no telemetry, no account, no cloud sync, no subscription. Everything lives in `~/Library/Application Support/NeshankYar/`. The app works fully offline; the network is only used for fetching page metadata, screenshots, link checks, downloads and *your* AI provider. It targets Apple Silicon on macOS 13+, is ad-hoc signed, builds with only the Command Line Tools (**no Xcode needed**), and is released under the **MIT** license with a **57-check test suite** running in GitHub Actions on every push.
 
@@ -80,10 +88,12 @@ Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for ma
 - **Does the YouTube downloader work without any setup?** Yes — `yt-dlp` and `ffmpeg` are bundled inside the app; install the DMG and download (up to 720p in v1).
 - **Do I need a ChatGPT subscription?** No — bring any OpenAI-compatible key (including local Ollama) or use free/small models; the key stays on this Mac only.
 - **Does it work offline?** Everything except fetching page metadata, screenshots, link checks, downloads and AI calls works with zero network.
+- **Does it run on Intel Macs?** No — Neshank targets **Apple Silicon (M1 or newer) on macOS 13+**; Intel is not supported in v1.
+- **How is this different from cloud bookmark services?** No account, no subscription, no telemetry — nothing leaves your Mac except what you explicitly send. It searches *inside* the pages you saved, talks to them with your own AI key, turns them into mind maps, and downloads videos — one native app.
 
 ## ⬇️ Quick start
 
-**Download** the latest DMG from the **[Releases page](../../releases/latest)** → open → drag *نشانک* into Applications.
+**Download** **`Neshank-1.dmg`** from the **[Releases page](../../releases/latest)** → open → drag *نشانک* into Applications.
 
 > Gatekeeper note: the app is ad-hoc signed — **right-click → Open** on first launch (or `xattr -cr /Applications/نشانک.app`).
 
@@ -115,7 +125,7 @@ Settings → **Assistant** → enter any OpenAI-compatible endpoint (OpenAI, Ope
 | ⌘V | Paste URL + quick add (when no text field is focused) |
 | ⌘Z / ⌘⌫ | Undo delete / move to trash |
 
-Full list in the [Persian section](#persian) · README.
+The complete shortcut list (14 rows) also appears in each language section below.
 
 ## 🏗 Architecture
 
