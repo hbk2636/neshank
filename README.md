@@ -47,6 +47,39 @@ Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for ma
 
 6 complete UI layouts (Classic, Aurora, Focus, Dashboard, Atlas, Orbit) · 10 accent colors + 6 themes · light/dark · full-page article archive with deep search · **Today** page (⌘⇧T) · command palette (**⌘K**) · decision log (“bought / skipped / maybe”) · saved filters · duplicate finder · folder colors & icons · multi-select bulk actions · daily automatic backups · Persian (RTL), English, Russian, Chinese localization · works fully offline.
 
+## 📖 About Neshank (نشانک) — the full picture
+
+**The problem every heavy internet user knows.** You save a great article, a product page, a tutorial or a video, and it disappears into a browser bookmark bar that nobody ever opens again. Months later you need that link and it is gone — buried under a thousand siblings, hidden behind an expired domain, or scattered across three browsers, two note apps and a chat history. “Read later” lists become shame piles. Link rot eats the useful parts of the web. Browser bookmark managers were never designed to be a **library**: they cannot search inside the pages you saved, cannot tell you which links are still alive, cannot help you decide anything, and cannot turn a pile of URLs into a picture you can actually think with.
+
+**Neshank (نشانک — Persian for “bookmark”) is a native macOS app that turns saved links into an offline-first knowledge library.** One SQLite database on your Mac, a fast SwiftUI interface, and six jobs done properly:
+
+**1. Capture in one gesture.** A tiny quick-add box lives in the macOS menu bar right next to the battery indicator — paste a link and it is saved without opening the main window. A global hotkey (default **⌘⇧Space**, remappable to ⌘⇧A / ⌘⇧H or disabled) summons a floating quick-add panel from *any* application, with no Accessibility permission required (Carbon HotKey). Press **⌘V** anywhere that is not a text field and the panel opens with your clipboard URL already filled. Drag a link out of any browser onto the window and the panel appears. Titles, descriptions, favicons and og-images are fetched automatically while you type nothing.
+
+**2. Organize without effort.** Hierarchical folders with inline expand/collapse, right-click subfolders and safe deletion that never orphans children; ten-color palette plus sixteen icons per folder; multi-tags; saved filters that remember search + scope + sort under a name; a duplicate finder that normalizes URLs (http/https, www, tracking parameters) and keeps the newest copy; grouping by domain, Persian calendar month or folder; multi-select bulk actions (move, tag, mark read, archive, delete); a30-day trash with **⌘Z** undo and an explicit “empty trash”; Netscape-format import and export for Safari, Chrome and Firefox.
+
+**3. Read forever.** When you save a page, its full text is archived locally (toggle-able), so even if the site dies, the words stay — and they are indexed: full-text search (SQLite **FTS5** with LIKE fallback) reaches *inside* page contents, not just titles and URLs. Neshank takes a real screenshot of each page with WKWebView so your library looks like a magazine, not a list (empty/error captures are detected automatically). A link checker batch-tests health (HEAD with GET fallback) and separates “dead” from “unknown”. Daily automatic backups, schema-versioned migrations that never wipe your data, and a manual backup button round out the safety story.
+
+**4. Talk to your links — the AI chatbot.** Connect **any OpenAI-compatible `/v1` provider** — OpenAI, OpenRouter, local Ollama, or a self-hosted server — enter base URL, API key and model in *Settings → Assistant*, press *Test Connection*, and you are done: the app ships **no default cloud**, your key never leaves your Mac. On any bookmark, the ✦ button (or **⌘⇧D**) opens a persistent chat about that page: “does this fit my budget?”, “5-point summary”, “pros and cons”, “risks and downsides”, “compare against my profile”, “questions to ask before buying”, or free-form conversation. Context = the archived page text + title/URL/notes/tags + your written profile; if the text was not archived, the assistant reads the page itself on first ask. Answers are instructed to stay honest — prices and stock only when present on the page (“according to this page”), nothing guessed. A **library-wide chat** answers questions across *all* bookmarks with numbered citations **[1] [2]** and clickable source chips. Every answer can get a decision log entry — bought / skipped / maybe, with a note and date — visible later as a badge on the bookmark. Per-link chats persist; the Chats page (**⌘⇧C**) searches, renames, pins, restarts or deletes them. Crucially, prompts are tuned so that even **small and free models** return useful output — no GPT-4 dependency.
+
+**5. See the big picture — link → mind map generator.** Give it a link (or a selection of bookmarks) and Neshank builds a **visual mind map** from the page’s archived content: **6 layouts/templates** — including a balanced two-sided Buzan/XMind-style map with the root centered and branches alternating left/right — in multiple color themes, with four always-alive views (**map · tree · markdown · JSON**) that switch instantly without reload. The renderer is a single self-contained offline `canvas.html` bundled in the app: no remote resources, no Electron, works on a plane. The generation prompts are engineered to produce a sane structure even from **weak, small or free AI models** — this is the feature people screenshot and share.
+
+**6. Download video — free, built-in.** A complete **video downloader for macOS** ships inside the app: **YouTube, Aparat, SoundCloud, TikTok, Dailymotion and 1,700+ other sites** through a bundled, auto-updating `yt-dlp` engine plus `ffmpeg` — zero setup, no account, no server, no paid API. Paste a URL (or click a YouTube bookmark, which is auto-detected as “ready to download”), watch live progress, and save to the folder you chose. Video metadata — title, channel, duration, thumbnail — fills a new bookmark without opening the browser, and subtitles can be archived into the library so your deep search and AI assistant can search *inside videos* too. Version 1 supports up to **720p**; higher qualities are on the roadmap. It is the best free YouTube downloader for Mac that also works as a generic video downloader — while you should always respect each site’s terms of service.
+
+**First-class Persian, native everywhere.** The whole interface is right-to-left Persian with Persian numerals and calendar month grouping — plus complete English, Russian and Chinese localizations (all labels live in one localization dictionary with CI-checked health). Six full UI design shells let the app become whatever you want: a classic three-pane Mac browser-style library, a glassy Aurora tab-bar with big visual cards, a typographic Focus column, a widget Dashboard with tag clouds, an Atlas catalogue with serif typography, or an Orbit tile launcher — with10 accent colors, 6 gradient themes and light/dark on top.
+
+**Native, small, private.** Built with **SwiftUI + SQLite (WAL, FTS5)** — no Electron, no bundled browser runtime, no telemetry, no account, no cloud sync, no subscription. Everything lives in `~/Library/Application Support/NeshankYar/`. The app works fully offline; the network is only used for fetching page metadata, screenshots, link checks, downloads and *your* AI provider. It targets Apple Silicon on macOS 13+, is ad-hoc signed, builds with only the Command Line Tools (**no Xcode needed**), and is released under the **MIT** license with a **57-check test suite** running in GitHub Actions on every push.
+
+**Who is it for?** Researchers and students archiving papers before they vanish; developers collecting documentation; shoppers who want an AI second opinion before buying; creators downloading reference videos at 720p; educators building visual mind maps from lecture links; and the Persian-speaking community that has waited for a serious, beautiful, RTL-native bookmarking tool that is not SaaS and not spyware.
+
+**In one sentence:** Neshank is the free, open-source, offline-first **bookmark manager for macOS** with an **AI assistant chatbot for your links**, a **link-to-mind-map generator**, and a built-in **YouTube / video downloader** — private by design, gorgeous by default.
+
+### ❓ Quick FAQ
+
+- **Is it free?** Yes — MIT-licensed, no paid tier, no account, forever.
+- **Does the YouTube downloader work without any setup?** Yes — `yt-dlp` and `ffmpeg` are bundled inside the app; install the DMG and download (up to 720p in v1).
+- **Do I need a ChatGPT subscription?** No — bring any OpenAI-compatible key (including local Ollama) or use free/small models; the key stays on this Mac only.
+- **Does it work offline?** Everything except fetching page metadata, screenshots, link checks, downloads and AI calls works with zero network.
+
 ## ⬇️ Quick start
 
 **Download** the latest DMG from the **[Releases page](../../releases/latest)** → open → drag *نشانک* into Applications.
@@ -108,7 +141,7 @@ zsh Scripts/run_tests.sh
 
 **57 checks, 0 failures** — URL normalization, localization dictionary health, schema migration, backups (snapshot / failure paths / daily pruning), mind-map layout invariants (balanced map, outline alignment, wire counts) and UI-design integrity. Exit code 1 = failure, so it slots straight into CI.
 
-## 🙏 Credits
+## 🔗 Related projects & credits
 
 Neshank stands on the shoulders of these open-source projects — thank you:
 
@@ -128,9 +161,9 @@ Local **SQLite** library; archived page text, screenshots and favicon caches sta
 
 <br>
 
-## #️⃣ Tags
+## #️⃣ Tags & keywords
 
-`#macos` `#bookmarks` `#bookmark-manager` `#productivity` `#mind-map` `#video-downloader` `#yt-dlp` `#ai-assistant` `#openai` `#swiftui` `#swift` `#sqlite` `#local-first` `#offline-first` `#privacy` `#rtl` `#persian` `#farsi` `#open-source` `#knowledge-management`
+`#macos` `#mac` `#apple` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#yt-dlp` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#local-first` `#offline-first` `#privacy` `#rtl` `#persian` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management`
 
 ---
 
