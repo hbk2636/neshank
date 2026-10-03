@@ -21,6 +21,17 @@
 
 Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for macOS** built with **SwiftUI + SQLite** — no Electron, no cloud, no account, no Xcode required to build. It replaces a folder of scattered links with a fast, offline-first library where every saved page is **archived, searchable and ready to talk to**.
 
+<table>
+  <tr>
+    <td><img src="./docs/assets/screenshot-main.png" width="100%" alt="Neshank main window — bookmark library with folders, search and RTL Persian UI"></td>
+    <td><img src="./docs/assets/screenshot-mindmap.png" width="100%" alt="Link to visual mind map generator with 6 layouts and color themes"></td>
+  </tr>
+  <tr>
+    <td><img src="./docs/assets/screenshot-downloader.png" width="100%" alt="Built-in free video downloader for YouTube, Aparat and 1700+ sites"></td>
+    <td><img src="./docs/assets/screenshot-assistant.png" width="100%" alt="AI chat assistant panel for bookmarked links — quick questions and free chat"></td>
+  </tr>
+</table>
+
 ### ✨ Highlights
 
 |  | Feature | What you get |

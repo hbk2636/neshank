@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let openChats = ProcessInfo.processInfo.environment["NESHANK_OPEN_CHATS"] == "1"
             let openYtdlp = ProcessInfo.processInfo.environment["NESHANK_OPEN_YTDLP"] == "1"
             let openMindmap = ProcessInfo.processInfo.environment["NESHANK_OPEN_MINDMAP"] == "1"
+            let openAssistant = ProcessInfo.processInfo.environment["NESHANK_OPEN_ASSISTANT"] == "1"
             // تولید خودکار نقشه برای دادهٔ آغازین: NESHANK_MINDMAP_AUTO=<url>
             let mindmapAutoURL = ProcessInfo.processInfo.environment["NESHANK_MINDMAP_AUTO"] ?? ""
             // اندازهٔ آزمایشی پنجره، مثلاً NESHANK_WINDOW=1000x640
@@ -131,6 +132,31 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             try? await Task.sleep(nanoseconds: 900_000_000)
                             VideoDownloadToolWindow.shared.model.start()
                         }
+                    }
+                } else if openAssistant {
+                    // پنل دستیار (⌘⇧D) روی اولین نشانک — فقط برای اسکرین‌شات README
+                    Library.shared.selectedId = Library.shared.results.first?.id
+                    Task { @MainActor in
+                        NSApp.activate(ignoringOtherApps: true)
+                        if let w = NSApp.windows.first(where: { $0.isVisible && !$0.title.isEmpty }) {
+                            w.makeKeyAndOrderFront(nil)
+                        }
+                        try? await Task.sleep(nanoseconds: 1_200_000_000)
+                        let ev = NSEvent.keyEvent(
+                            with: .keyDown, location: .zero,
+                            modifierFlags: [.command, .shift],
+                            timestamp: ProcessInfo.processInfo.systemUptime,
+                            windowNumber: NSApp.keyWindow?.windowNumber ?? 0,
+                            context: nil,
+                            characters: "D",
+                            charactersIgnoringModifiers: "d",
+                            isARepeat: false,
+                            keyCode: 2
+                        )
+                        let target = NSApp.keyWindow
+                            ?? NSApp.windows.first { $0.isVisible && !$0.title.isEmpty }
+                        let handled = ev.map { target?.performKeyEquivalent(with: $0) ?? false } ?? false
+                        print("ASSIST: target=\(target?.title ?? "nil") handled=\(handled)")
                     }
                 }
             }
