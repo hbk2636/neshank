@@ -146,7 +146,7 @@ enum HotKeyChoice: String, CaseIterable, Identifiable {
 enum AppTheme {
     /// تمپلیت انتخابی پنجرهٔ اصلی (پنجره‌های فرعی هم از آن پیروی می‌کنند)
     static var selected: UITheme {
-        UITheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .classic
+        UITheme(rawValue: UserDefaults.standard.string(forKey: "appTheme") ?? "") ?? .ocean
     }
 
     static var accent: Color? {

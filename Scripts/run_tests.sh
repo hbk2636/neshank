@@ -11,6 +11,7 @@ swiftc -swift-version 5 -o "$OUT" \
   Sources/NeshankYar/Models/*.swift \
   Sources/NeshankYar/Store/*.swift \
   Sources/NeshankYar/Services/*.swift \
+  Sources/NeshankYar/Views/Designs/UIDesign.swift \
   Tests/NeshankTest/main.swift
 
 "$OUT"

@@ -106,6 +106,7 @@ struct CommandPalette: View {
         }
         .frame(width: 620)
         .background(.regularMaterial)
+        .opaquePanelBacking()
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -234,7 +235,11 @@ struct CommandPalette: View {
             Item(id: "chats", kind: .command, title: L.tr("Chats"), subtitle: L.tr("All previous chats"), icon: "bubble.left.and.bubble.right",
                  run: { self.close(); NotificationCenter.default.post(name: .showChats, object: nil) }),
             Item(id: "ask", kind: .command, title: L.tr("Ask the whole library"), subtitle: L.tr("New Library Chat"), icon: "books.vertical",
-                 run: { self.close(); self.newLibraryChat() })
+                 run: { self.close(); self.newLibraryChat() }),
+            Item(id: "mindmap", kind: .command, title: L.tr("Mind Map Designer"), subtitle: L.tr("Separate window: design a mind map"), icon: "brain.head.profile",
+                 run: { self.close(); ShellTools.openMindMap() }),
+            Item(id: "ytdlp", kind: .command, title: L.tr("Video Downloader"), subtitle: L.tr("Separate window: download a video"), icon: "arrow.down.circle",
+                 run: { self.close(); ShellTools.openVideoDownload() }),
         ]
 
         if let id = lib.selectedId, let b = lib.bookmark(id: id) {

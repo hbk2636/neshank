@@ -61,6 +61,60 @@ for t in UITheme.allCases where t != .classic {
 check("تم‌های غیر کلاسیک پالت کامل دارند", themeOK)
 check("برچسب تم‌ها ترجمه دارند", UITheme.allCases.allSatisfy { !$0.label.isEmpty && $0.label != $0.rawValue })
 
+// MARK: ۲.۶) طراحی‌های رابط (چیدمان‌ها)
+
+check("۶ طراحی رابط تعریف شده", UIDesign.allCases.count == 6, "\(UIDesign.allCases.count)")
+check("شناسه‌های طراحی یکتا", Set(UIDesign.allCases.map(\.id)).count == 6)
+check("پیش‌فرض چیدمان کلاسیک است", UIDesign(rawValue: "nothing") ?? .classic == .classic)
+check("هر طراحی برچسب و توضیح دارد", UIDesign.allCases.allSatisfy { !$0.label.isEmpty && !$0.tagline.isEmpty })
+check("برچسب طراحی‌ها ترجمه دارند", UIDesign.allCases.allSatisfy { $0.label != $0.rawValue })
+
+// MARK: ۲.۷) ابزار دانلود ویدیو (yt-dlp)
+
+check("پارس درصد پیشرفت", YtDlp.progressPercent(from: "[download]  42.3% of ~ 10.00MiB") == 42.3)
+check("پارس درصد ۱۰۰", YtDlp.progressPercent(from: "[download] 100% of 5MiB") == 100)
+check("خط بدون پیشرفت نادیده گرفته می‌شود", YtDlp.progressPercent(from: "[ExtractAudio] Destination done") == nil)
+
+let audioArgs = YtDlp.arguments(mode: .audio, url: "https://youtu.be/x",
+                                destination: URL(fileURLWithPath: "/tmp/d"), hasFFmpeg: false)
+check("صدای بدون ffmpeg ادغام ندارد", !audioArgs.contains("--merge-output-format"))
+check("صدای بدون ffmpeg جریان m4a می‌گیرد", audioArgs.contains("ba[ext=m4a]/ba"))
+check("URL آخرین آرگومان است", audioArgs.last == "https://youtu.be/x")
+check("قالب مقصد در آرگومان‌ها هست", audioArgs.contains { $0.contains("/tmp/d/%(title)s.%(ext)s") })
+
+let videoArgs = YtDlp.arguments(mode: .video720, url: "https://youtu.be/x",
+                                destination: URL(fileURLWithPath: "/tmp/d"), hasFFmpeg: true)
+check("ویدیوی با ffmpeg ادغام mp4", videoArgs.contains("--merge-output-format") && videoArgs.contains("mp4"))
+check("سقف ۷۲۰ در آرگومان ویدیو", videoArgs.contains { $0.contains("height<=720") })
+
+let metaJSON = #"{"title":"تست ویدیو","uploader":"کانال آزمایشی","duration":125.4,"webpage_url":"https://youtu.be/x"}"#
+let meta = try? JSONDecoder().decode(YtDlp.VideoMetadata.self, from: Data(metaJSON.utf8))
+check("دیکود متادیتای ویدیو", meta?.title == "تست ویدیو" && meta?.uploader == "کانال آزمایشی")
+check("قالب مدت زمان", YtDlp.durationText(125.4) == "2:05" && YtDlp.durationText(3725) == "1:02:05")
+check("مدت نامعتبر nil می‌شود", YtDlp.durationText(0) == nil)
+
+let detail = YtDlp.parseProgressDetail(from: "[download]  42.3% of ~ 10.20MiB at  1.50MiB/s ETA 00:05")
+check("پارس حجم کل", detail.total == "10.20MiB", detail.total ?? "nil")
+check("پارس سرعت", detail.speed == "1.50MiB/s", detail.speed ?? "nil")
+check("پارس زمان باقی‌مانده", detail.eta == "00:05", detail.eta ?? "nil")
+let noDetail = YtDlp.parseProgressDetail(from: "[Merger] Merging formats")
+check("خط غیر دانلود جزئیات ندارد", noDetail.total == nil && noDetail.speed == nil && noDetail.eta == nil)
+check("قالب حجم", YtDlp.fileSizeText(302_000) == "295K" && YtDlp.fileSizeText(9_800_000) == "9.3M")
+check("قالب ساعت‌شمار", YtDlp.clockText(5) == "5" && YtDlp.clockText(65) == "1:05")
+check("تشخیص منبع ویدیو", VideoSource.detect("https://www.youtube.com/watch?v=x") == .youtube
+    && VideoSource.detect("https://www.aparat.com/v/abc") == .aparat
+    && VideoSource.detect("https://example.com/f.mp4") == .direct)
+check("شناسهٔ آپارات", AparatBackend.videoID(from: "https://www.aparat.com/v/c2d5q8n/") == "c2d5q8n")
+
+if FileManager.default.isExecutableFile(atPath: "/tmp/yt-dlp-macos") {
+    check("باینری از متغیر محیطی خوانده می‌شود",
+          YtDlp.binaryURL(environment: ["NESHANKYAR_YTDLP": "/tmp/yt-dlp-macos"])?.path == "/tmp/yt-dlp-macos")
+}
+check("باینری ناموجود nil می‌دهد",
+      YtDlp.binaryURL(bundle: .main,
+                      environment: ["NESHANKYAR_YTDLP": "/nonexistent/yt-dlp"],
+                      toolsDirectory: URL(fileURLWithPath: "/nonexistent/tools")) == nil)
+
 // MARK: ۳) دیتابیس: باز شدن بدون خطا + مهاجرت
 
 let lib = Library(databasePath: testDBPath)
@@ -91,8 +145,10 @@ if let record = lib.createMindMap(title: "Map", sourceURL: "https://example.com/
     } catch { check("خواندن node_count", false, "\(error)") }
 
     lib.scope = .mindMaps
-    check("فهرست بدون JSON شمارش درست می‌دهد", lib.mindMaps.first?.displayNodeCount == 3,
-          "\(lib.mindMaps.first?.displayNodeCount ?? -1)")
+    // seed دو نقشهٔ نمونه هم درج می‌کند — شمارش باید رکورد خودِ تست را بگیرد
+    let listed = lib.mindMaps.first(where: { $0.id == record.id })
+    check("فهرست بدون JSON شمارش درست می‌دهد", listed?.displayNodeCount == 3,
+          "\(listed?.displayNodeCount ?? -1)")
     check("خواندن کامل JSON دارد", lib.mindMap(id: record.id)?.mindMapJSON.isEmpty == false)
 
     let bigger = """
@@ -113,6 +169,8 @@ if let record = lib.createMindMap(title: "Map", sourceURL: "https://example.com/
 
 // MARK: ۵) بک‌آپ
 
+// seed چهار بوکمارک نمونه درج می‌کند — برای تست اسنپ‌شات، جدول خالی می‌شود
+try? Database(path: testDBPath).run("DELETE FROM bookmarks")
 await lib.add(rawURL: "https://example.com/b1", title: "B1", note: "", folderId: nil,
               tags: [], fetchMeta: false)
 do {
@@ -157,6 +215,24 @@ do {
     defaults.removeObject(forKey: "lastAutoBackup")
 } catch {
     check("منطق بک‌آپ روزانه", false, "\(error)")
+}
+
+// MARK: ۶) چیدمان دوطرفهٔ نقشهٔ ذهنی (سبک تصویر مرجع)
+
+do {
+    // enum و بوم باید هم‌نام باشند، وگرنه آیتم منو بی‌اثر می‌شود
+    check("چیدمان mindmap در enum هست", MindMapLayout.mindmap.rawValue == "mindmap")
+    check("منو شش چیدمان دارد", MindMapLayout.allCases.count == 6, "\(MindMapLayout.allCases.count)")
+    check("برچسب mindmap خالی نیست", !MindMapLayout.mindmap.label.isEmpty)
+    let canvasPath = "Sources/NeshankYar/Resources/MindMap/canvas.html"
+    let canvas = try String(contentsOfFile: canvasPath, encoding: .utf8)
+    check("بوم mindmap را می‌شناسد", canvas.contains("'mindmap'"))
+    check("بوم تابع چیدمان متوازن دارد", canvas.contains("function layoutBalanced()"))
+    check("بوم سیم روبه‌رو دارد", canvas.contains("anchor(p, true, n)"))
+    check("اوت‌لاین لبهٔ چپ هم‌تراز دارد", canvas.contains("n.x = depth * INDENT + n.w / 2"))
+    check("اوت‌لاین اتصال عمودی دارد", canvas.contains("layoutName === 'outline'"))
+} catch {
+    check("خواندن بوم برای چیدمان", false, "\(error)")
 }
 
 // MARK: جمع‌بندی

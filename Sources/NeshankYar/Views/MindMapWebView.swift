@@ -28,6 +28,17 @@ final class MindMapRenderBridge: ObservableObject {
         }
     }
 
+    /// نگه‌داشتن JSON برای رندر بعد از بارگذاری صفحه (تعویض تب و ساخت وب‌ویوی تازه).
+    /// با رندر تکراریِ همان JSON فرقی ندارد چون رندر قطعی (idempotent) است.
+    func stagePending(_ json: String) {
+        guard !json.isEmpty else { return }
+        pendingJSON = json
+        if loaded {
+            pendingJSON = nil
+            render(json)
+        }
+    }
+
     /// با ساختن WebView تازه (تعویض تب/بازسازی نما) وضعیت پلِ وب‌ویو قبلی باطل می‌شود؛
     /// وگرنه `loaded` کهنه می‌ماند و رندر روی صفحهٔ خالیِ تازه انجام می‌شود.
     func resetForNewView() {
@@ -196,13 +207,12 @@ struct MindMapWebView: NSViewRepresentable {
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
-        // فقط با تغییر JSON رندر کن. شرط «nodeCount == 0» حذف شد: هر بار رندر،
-        // نوشتن `renderError` (منتشرشده) دوباره updateNSView را صدا می‌زد و
-        // چرخهٔ بی‌پایانِ «رندر → به‌روزرسانی → رندر» پاسخ‌های تکمیل را گرسنه
-        // می‌کرد و رابط برای همیشه روی «در حال رندر نقشه…» قفل می‌شد.
-        if bridge.loaded, !json.isEmpty, json != context.coordinator.lastJSON {
+        // رندر فقط با تغییر JSON. اگر صفحه هنوز بار نشده، JSON نگه داشته می‌شود
+        // تا بعد از didFinish رندر شود (وگرنه با تعویض تب، رندر گم و اسپینر ابدی می‌شد).
+        if !json.isEmpty, json != context.coordinator.lastJSON {
             context.coordinator.lastJSON = json
-            bridge.render(json)
+            if bridge.loaded { bridge.render(json) }
+            else { bridge.stagePending(json) }
         }
         if dark != context.coordinator.dark {
             context.coordinator.dark = dark

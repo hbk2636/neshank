@@ -107,6 +107,8 @@ struct MindMapToolView: View {
     @State private var themeName = MindMapTheme.dark.rawValue
     @State private var layoutName = MindMapLayout.tree.rawValue
     @State private var rootLeft = true
+    /// کارت راهنمای اتصال سرویس هوش مصنوعی — بار اول خودکار باز، بعد از تأیید بسته
+    @State private var showAISetup = false
 
     private var dark: Bool { scheme == .dark }
 
@@ -126,7 +128,15 @@ struct MindMapToolView: View {
             themeName = MindMapTheme.forColorScheme(dark: dark).rawValue
             bridge.setThemeName(themeName)
         }
-        .onAppear { bridge.onMapChange = { model.canvasDidChange($0) } }
+        .onAppear {
+            bridge.onMapChange = { model.canvasDidChange($0) }
+            // اولین بار که سرویس وصل نیست، راهنمای اتصال همان‌جا باز است
+            if showAISetup == false, !AIConfig.load().isConfigured { showAISetup = true }
+        }
+        .onChange(of: model.apiProblem) { problem in
+            // خطای سرویس هوش مصنوعی → راهنمای اتصال دوباره باز می‌شود
+            if problem { showAISetup = true }
+        }
         .onChange(of: scheme) { _ in
             // فقط وقتی کاربر روی تم‌های خودکار (تیره/روشن) است، با رنگ‌سیستم عوض شود؛
             // تم‌های دستی انتخاب‌شده (غروب، بنفشه و…) حفظ می‌شوند.
@@ -137,8 +147,9 @@ struct MindMapToolView: View {
             bridge.setThemeName(themeName)
         }
         .onChange(of: model.mapJSON) { json in
+            // رندر با MindMapWebView.updateNSView انجام می‌شود؛ رندر دوباره از این‌جا
+            // چرخهٔ «رندر → به‌روزرسانی → رندر» می‌ساخت و با تعویض تب قفل می‌کرد.
             if json.isEmpty { bridge.clear() }
-            else if bridge.nodeCount == 0 { bridge.render(json) }
             if let saved = MindMapLayout.fromJSON(json) { layoutName = saved.rawValue }
         }
     }
@@ -178,101 +189,137 @@ struct MindMapToolView: View {
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 10)
 
-            Button {
-                if model.hasResult, model.phase == .result {
-                    model.start(forceRegenerate: true)
-                } else {
-                    model.start()
+            // اقدامات اصلی — هر دکمه با آیکون و برچسب
+            HStack(spacing: 10) {
+                Button {
+                    if model.hasResult, model.phase == .result {
+                        model.start(forceRegenerate: true)
+                    } else {
+                        model.start()
+                    }
+                } label: {
+                    Label(model.hasResult ? L.tr("Generate") : L.tr("Start"), systemImage: "play.fill")
+                        .padding(.horizontal, 2)
                 }
-            } label: {
-                Label(model.hasResult ? L.tr("Generate") : L.tr("Start"), systemImage: "play.fill")
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.small)
-            .disabled(!model.canStart)
-            .help(L.tr("Run the full pipeline"))
-
-            if model.isBusy {
-                Button { model.stop() } label: {
-                    Label(L.tr("Stop"), systemImage: "stop.fill")
-                }
+                .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .help(L.tr("Cancel network and AI requests"))
-            }
+                .disabled(!model.canStart)
+                .help(L.tr("Run the full pipeline"))
 
-            Button { model.start(forceRegenerate: true) } label: {
-                Label(L.tr("Regenerate"), systemImage: "arrow.clockwise")
-            }
-            .controlSize(.small)
-            .disabled(model.isBusy)
-            .help(L.tr("Ignore cache and build again"))
+                if model.isBusy {
+                    Button { model.stop() } label: {
+                        Label(L.tr("Stop"), systemImage: "stop.fill")
+                    }
+                    .controlSize(.small)
+                    .help(L.tr("Cancel network and AI requests"))
+                }
 
-            Button { model.saveCurrentMap() } label: {
-                Label(L.tr("Save"), systemImage: "square.and.arrow.down")
-            }
-            .controlSize(.small)
-            .disabled(!model.hasResult || model.isBusy)
-            .help(model.currentRecordID == nil ? L.tr("Save this map as a separate record in the library") : L.tr("Save changes to this map"))
+                Button { model.start(forceRegenerate: true) } label: {
+                    Label(L.tr("Regenerate"), systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .disabled(model.isBusy)
+                .help(L.tr("Ignore cache and build again"))
 
-            Menu {
-                Button(L.tr("JSON File")) { exportJSON() }
-                Button(L.tr("Markdown File")) { exportMarkdown() }
-                Divider()
-                Button(L.tr("PNG Image")) { exportSnapshotJPEG(false) }
-                Button(L.tr("JPEG Image")) { exportSnapshotJPEG(true) }
-                Divider()
-                Button(L.tr("Standalone HTML Page")) { exportStandaloneHTML() }
-            } label: {
-                Label(L.tr("Export"), systemImage: "square.and.arrow.up")
+                Button { model.saveCurrentMap() } label: {
+                    Label(L.tr("Save"), systemImage: "square.and.arrow.down")
+                }
+                .buttonStyle(.borderless)
+                .controlSize(.small)
+                .disabled(!model.hasResult || model.isBusy)
+                .help(model.currentRecordID == nil ? L.tr("Save this map as a separate record in the library") : L.tr("Save changes to this map"))
+
+                Menu {
+                    Button(L.tr("JSON File")) { exportJSON() }
+                    Button(L.tr("Markdown File")) { exportMarkdown() }
+                    Divider()
+                    Button(L.tr("PNG Image")) { exportSnapshotJPEG(false) }
+                    Button(L.tr("JPEG Image")) { exportSnapshotJPEG(true) }
+                    Divider()
+                    Button(L.tr("Standalone HTML Page")) { exportStandaloneHTML() }
+                } label: {
+                    Label(L.tr("Export"), systemImage: "square.and.arrow.up")
+                        .font(.system(size: 12))
+                }
+                .menuStyle(.button)
+                .buttonStyle(.borderless)
+                .menuIndicator(.hidden)
+                .fixedSize()
+                .disabled(!model.hasResult)
+                .help(L.tr("Export the map in different formats"))
+
+                Button {
+                    if let url = model.sourceURL { NSWorkspace.shared.open(url) }
+                } label: {
+                    Label(L.tr("Source Page"), systemImage: "safari")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.borderless)
+                .help(L.tr("Open source page in browser"))
+
+                Button { MindMapToolWindow.shared.close() } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 24, height: 24)
+                        .background(Circle().fill(Color.primary.opacity(0.06)))
+                }
+                .buttonStyle(.plain)
+                .help(L.tr("Close Window (⌘W)"))
             }
-            .menuStyle(.borderlessButton)
             .fixedSize()
-            .disabled(!model.hasResult)
-
-            Button {
-                if let url = model.sourceURL { NSWorkspace.shared.open(url) }
-            } label: {
-                Image(systemName: "safari")
-            }
-            .buttonStyle(.borderless)
-            .help(L.tr("Open source page in browser"))
-
-            Button { MindMapToolWindow.shared.close() } label: {
-                Image(systemName: "xmark")
-            }
-            .buttonStyle(.borderless)
-            .help(L.tr("Close Window (⌘W)"))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+        .background(.bar)
     }
 
-    // MARK: تب‌ها
+    // MARK: تب‌های نما
 
     private var tabBar: some View {
-        HStack(spacing: 4) {
-            ForEach(MindMapToolModel.Tab.allCases) { tab in
-                Button {
-                    model.tab = tab
-                } label: {
-                    Label(tab.label, systemImage: tab.icon)
-                        .font(.system(size: 11, weight: model.tab == tab ? .semibold : .regular))
-                        .padding(.horizontal, 9)
+        HStack(spacing: 10) {
+            HStack(spacing: 2) {
+                ForEach(MindMapToolModel.Tab.allCases) { tab in
+                    let active = model.tab == tab
+                    Button {
+                        model.tab = tab
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: 10, weight: .semibold))
+                            Text(tab.label)
+                                .font(.system(size: 11.5, weight: active ? .semibold : .regular))
+                        }
+                        .padding(.horizontal, 11)
                         .padding(.vertical, 5)
                         .background {
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(model.tab == tab ? Color.accentColor.opacity(0.20) : .clear)
+                            Capsule().fill(active
+                                           ? AnyShapeStyle(Color.accentColor.opacity(0.22))
+                                           : AnyShapeStyle(Color.primary.opacity(0.04)))
                         }
+                        .overlay {
+                            Capsule().strokeBorder(active
+                                                   ? Color.accentColor.opacity(0.5)
+                                                   : Color.primary.opacity(0.06))
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
             }
+            .padding(3)
+            .background(Capsule().fill(Color.primary.opacity(0.04)))
+            .overlay(Capsule().strokeBorder(Color.primary.opacity(0.06)))
+
             Spacer()
+
             if model.phase == .result, !bridge.renderError.isNilOrBlank {
                 Label(bridge.renderError ?? "", systemImage: "exclamationmark.triangle")
                     .font(.system(size: 10))
                     .foregroundStyle(.orange)
+                    .lineLimit(1)
             }
         }
         .padding(.horizontal, 12)
@@ -296,6 +343,13 @@ struct MindMapToolView: View {
     /// حالت آماده: فیلد URL + توضیح + دکمهٔ شروع
     private var readyState: some View {
         VStack(spacing: 16) {
+            if showAISetup {
+                AISetupCard(problemHint: model.apiProblem) {
+                    withAnimation { showAISetup = false }
+                    model.apiProblem = false
+                }
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
             Spacer()
             Image(systemName: "map")
                 .font(.system(size: 34, weight: .light))
@@ -320,6 +374,14 @@ struct MindMapToolView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canStart)
+                // میانبر تنظیمات سرویس هوش مصنوعی — همان‌جا، بدون رفتن به تنظیمات
+                Button {
+                    withAnimation { showAISetup.toggle() }
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help(L.tr("AI Setup"))
             }
 
             if !model.rawMarkdown.isEmpty {
@@ -401,59 +463,173 @@ struct MindMapToolView: View {
                 graphToolbar
                 Divider()
             }
-            switch model.tab {
-            case .map:
-                ZStack {
-                    MindMapWebView(bridge: bridge, json: model.mapJSON, dark: dark)
-                    if bridge.nodeCount == 0 {
-                        VStack(spacing: 8) {
-                            ProgressView()
-                            Text(L.tr("Rendering map…")).font(.caption).foregroundStyle(.secondary)
-                        }
-                    }
-                }
-            case .tree:
-                ScrollView {
-                    Text(model.treeText)
-                        .font(.system(size: 12, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(16)
-                }
-            case .markdown:
-                ScrollView {
-                    Text(model.markdownForExport)
-                        .font(.system(size: 12))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(16)
-                }
-            case .json:
-                ScrollView {
-                    Text(prettyJSON(model.mapJSON))
-                        .font(.system(size: 11, design: .monospaced))
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(16)
+            // هر چهار نما زنده می‌مانند (فقط مخفی می‌شوند) تا وب‌ویو با تعویض تب
+            // نابود و دوباره بارگذاری نشود — همان که اسپینر ابدی می‌ساخت.
+            ZStack {
+                mapPane
+                    .opacity(model.tab == .map ? 1 : 0)
+                    .allowsHitTesting(model.tab == .map)
+                treePane
+                    .opacity(model.tab == .tree ? 1 : 0)
+                    .allowsHitTesting(model.tab == .tree)
+                markdownPane
+                    .opacity(model.tab == .markdown ? 1 : 0)
+                    .allowsHitTesting(model.tab == .markdown)
+                jsonPane
+                    .opacity(model.tab == .json ? 1 : 0)
+                    .allowsHitTesting(model.tab == .json)
+            }
+        }
+    }
+
+    private var mapPane: some View {
+        ZStack {
+            MindMapWebView(bridge: bridge, json: model.mapJSON, dark: dark)
+            if bridge.nodeCount == 0 {
+                VStack(spacing: 8) {
+                    ProgressView()
+                    Text(L.tr("Rendering map…")).font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
     }
 
-    private var graphToolbar: some View {
-        HStack(spacing: 6) {
-            toolButton(L.tr("Zoom In (+)"), "plus.magnifyingglass") { bridge.zoomIn() }
-            toolButton(L.tr("Zoom Out (-)"), "minus.magnifyingglass") { bridge.zoomOut() }
-            toolButton(L.tr("Fit to Window (0)"), "arrow.down.right.and.arrow.up.left") { bridge.fit() }
-            Divider().frame(height: 16)
-            toolButton(L.tr("Add Child Node (Tab)"), "plus.circle") { bridge.addChild() }
-            toolButton(L.tr("Add Sibling Node (Enter)"), "plus.square.on.square") { bridge.addSibling() }
-            toolButton(L.tr("Delete Selected Node with Subtree (Delete)"), "xmark.circle") { bridge.deleteSelected() }
-            Divider().frame(height: 16)
-            toolButton(L.tr("Expand All Branches"), "rectangle.expand.vertical") { bridge.expandAll() }
-            toolButton(L.tr("Collapse All Branches"), "rectangle.compress.vertical") { bridge.collapseAll() }
+    private var treePane: some View {
+        ScrollView {
+            Text(model.treeText)
+                .font(.system(size: 12, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(16)
+        }
+    }
 
-            Menu {
+    private var markdownPane: some View {
+        ScrollView {
+            Text(model.markdownForExport)
+                .font(.system(size: 12))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(16)
+        }
+    }
+
+    private var jsonPane: some View {
+        ScrollView {
+            Text(prettyJSON(model.mapJSON))
+                .font(.system(size: 11, design: .monospaced))
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(16)
+        }
+    }
+
+    private var graphToolbar: some View {
+        HStack(spacing: 0) {
+            // نوار ابزار با برچسب — در پنجرهٔ باریک اسکرول افقی می‌شود
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 4) {
+                    // گروه ویرایش گره‌ها
+                    labeledTool(L.tr("New Child Node"), "plus.circle") { bridge.addChild() }
+                        .help(L.tr("Add Child Node (Tab)"))
+                    labeledTool(L.tr("New Sibling Node"), "plus.square.on.square") { bridge.addSibling() }
+                        .help(L.tr("Add Sibling Node (Enter)"))
+                    labeledTool(L.tr("Delete Node"), "xmark.circle") { bridge.deleteSelected() }
+                        .help(L.tr("Delete Selected Node with Subtree (Delete)"))
+
+                    toolDivider
+
+                    // گروه نمایش شاخه‌ها
+                    labeledTool(L.tr("Expand All"), "rectangle.expand.vertical") { bridge.expandAll() }
+                        .help(L.tr("Expand All Branches"))
+                    labeledTool(L.tr("Collapse All"), "rectangle.compress.vertical") { bridge.collapseAll() }
+                        .help(L.tr("Collapse All Branches"))
+
+                    toolDivider
+
+                    // گروه نما
+                    labeledTool(L.tr("Fit View"), "arrow.down.right.and.arrow.up.left") { bridge.fit() }
+                        .help(L.tr("Fit to Window (0)"))
+                    labeledTool(L.tr("Zoom In"), "plus.magnifyingglass") { bridge.zoomIn() }
+                        .help(L.tr("Zoom In (+)"))
+                    labeledTool(L.tr("Zoom Out"), "minus.magnifyingglass") { bridge.zoomOut() }
+                        .help(L.tr("Zoom Out (-)"))
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 5)
+            }
+
+            // منوی نمایش و جستجو — همیشه‌نمایان (بیرون از اسکرول)
+            Divider().frame(height: 18)
+            displayMenu
+            Divider().frame(height: 18)
+
+            Button { bridge.openSearch() } label: {
+                Label(L.tr("Search"), systemImage: "magnifyingglass")
+                    .font(.system(size: 11))
+            }
+            .buttonStyle(.borderless)
+            .controlSize(.small)
+            .padding(.horizontal, 10)
+            .help(L.tr("Search node text and highlight results"))
+        }
+        .background(Color.primary.opacity(0.025))
+    }
+
+    /// دکمهٔ ابزار با آیکون و برچسب
+    private func labeledTool(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 11))
+                Text(title)
+                    .font(.system(size: 11))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(Color.primary.opacity(0.045)))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var toolDivider: some View {
+        Divider()
+            .frame(height: 18)
+            .padding(.horizontal, 4)
+    }
+
+    /// حاشیهٔ گرادیان نئونی متحرک — دور دکمهٔ «قالب‌های مایند مپ»
+    private struct AnimatedNeonBorder: View {
+        var cornerRadius: CGFloat = 9
+        var lineWidth: CGFloat = 1.6
+
+        var body: some View {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                    .truncatingRemainder(dividingBy: 3) / 3 * 360
+                let angle = Angle.degrees(t)
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .strokeBorder(
+                        AngularGradient(
+                            colors: [.cyan, .purple, .pink, .orange, .yellow, .green, .cyan],
+                            center: .center,
+                            startAngle: angle,
+                            endAngle: angle + .degrees(360)
+                        ),
+                        lineWidth: lineWidth
+                    )
+                    .shadow(color: Color.cyan.opacity(0.55), radius: 3)
+            }
+            .allowsHitTesting(false)
+        }
+    }
+
+    /// منوی یکپارچهٔ قالب‌ها: چیدمان، تم رنگی و جهت ریشه — با حاشیهٔ نئونی متحرک
+    private var displayMenu: some View {
+        Menu {
+            Section(L.tr("Layout")) {
                 ForEach(MindMapLayout.allCases) { layout in
                     Button {
                         layoutName = layout.rawValue
@@ -466,14 +642,8 @@ struct MindMapToolView: View {
                         }
                     }
                 }
-            } label: {
-                Image(systemName: "rectangle.split.3x1")
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help(L.tr("Layout: tree / org / radial / outline / both sides"))
-
-            Menu {
+            Section(L.tr("Map Theme")) {
                 ForEach(MindMapTheme.allCases) { theme in
                     Button {
                         themeName = theme.rawValue
@@ -486,14 +656,8 @@ struct MindMapToolView: View {
                         }
                     }
                 }
-            } label: {
-                Image(systemName: "paintpalette")
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help(L.tr("Map Color Theme"))
-
-            Menu {
+            Section(L.tr("Direction")) {
                 Button {
                     rootLeft = true
                     bridge.setDirection(.rootLeft)
@@ -508,36 +672,33 @@ struct MindMapToolView: View {
                     Label(MindMapDirection.rootRight.label,
                           systemImage: !rootLeft ? "checkmark" : "arrow.left.to.line")
                 }
-            } label: {
-                Image(systemName: rootLeft ? "arrow.right.to.line" : "arrow.left.to.line")
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
-            .help(L.tr("Layout direction: root left (default) or root right"))
-
-            Spacer()
-            Button { bridge.openSearch() } label: {
-                Label(L.tr("Search"), systemImage: "magnifyingglass")
-                    .font(.system(size: 11))
-            }
-            .controlSize(.small)
-            .help(L.tr("Search node text and highlight results"))
+        } label: {
+            Label(L.tr("Mind Map Templates"), systemImage: "paintpalette")
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-    }
-
-    private func toolButton(_ title: String, _ icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
+        .menuStyle(.button)
+        .buttonStyle(.plain)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .overlay {
+            AnimatedNeonBorder()
         }
-        .buttonStyle(.borderless)
-        .help(title)
+        .help(L.tr("Mind map templates: layout, color theme and root direction"))
     }
 
     /// حالت خطا
     private var errorState: some View {
         VStack(spacing: 14) {
+            // خطای سرویس هوش مصنوعی → کارت راهنمای اتصال همین‌جا باز می‌شود
+            if model.apiProblem {
+                AISetupCard(problemHint: true) {
+                    model.apiProblem = false
+                }
+                .transition(.opacity)
+            }
             Spacer()
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 30, weight: .light))

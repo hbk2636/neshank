@@ -305,32 +305,22 @@ struct DetailView: View {
                     .lineLimit(2)
                     .textSelection(.enabled)
 
-                HStack(spacing: 7) {
-                    Text(b.domain)
-                    Text("·")
-                    Text(Dates.persian(b.createdAt))
-                    if !b.isRead {
-                        Text("·")
-                        Text(L.tr("Unread"))
-                            .foregroundStyle(.orange)
-                    }
-                    if b.isArchived {
-                        Text("·")
-                        Text(L.tr("Archived"))
-                    }
-                }
-                .font(.caption)
-                .foregroundStyle(.secondary)
+                // یک متن واحد تا در پنل‌های باریک با «…» کوتاه شود، نه شکستن وسط کلمه
+                Text(headerSubtitle(b))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
             }
 
             Spacer(minLength: 8)
 
-            HStack(spacing: 6) {
+            HStack(spacing: 4) {
                 Button {
                     showAssistant = true
                 } label: {
                     Image(systemName: "sparkles")
                 }
+                .buttonStyle(.borderless)
                 .help(L.tr("Assistant: is this page useful for me? (⌘⇧D)"))
                 .foregroundStyle(AppTheme.accent ?? .accentColor)
                 .keyboardShortcut("d", modifiers: [.command, .shift])
@@ -340,6 +330,7 @@ struct DetailView: View {
                 } label: {
                     Image(systemName: "arrow.up.right.square")
                 }
+                .buttonStyle(.borderless)
                 .help(L.tr("Open"))
 
                 Button {
@@ -347,6 +338,7 @@ struct DetailView: View {
                 } label: {
                     Image(systemName: "doc.on.doc")
                 }
+                .buttonStyle(.borderless)
                 .help(L.tr("Copy URL"))
 
                 Button {
@@ -354,57 +346,22 @@ struct DetailView: View {
                 } label: {
                     Image(systemName: b.starred ? "star.fill" : "star")
                 }
+                .buttonStyle(.borderless)
                 .help(L.tr("Toggle Star"))
                 .foregroundStyle(b.starred ? Color.yellow : Color.primary)
-
-                Menu {
-                    if b.isTrashed {
-                        Button(L.tr("Restore from Trash")) {
-                            lib.restore(ids: [b.id])
-                        }
-                        Button(L.tr("Delete Permanently"), role: .destructive) {
-                            confirmPurge = true
-                        }
-                        Divider()
-                    }
-                    Button(L.tr("Edit…")) {
-                        lib.editing = .edit(b)
-                    }
-                    Divider()
-                    Button(L.tr("Ask the Assistant…")) {
-                        showAssistant = true
-                    }
-                    Divider()
-                    Button(L.tr("Recheck")) {
-                        Task { await lib.recheck(id: b.id) }
-                    }
-                    if b.screenshot == nil, b.isWebPage {
-                        Button(L.tr("Capture Page Screenshot")) {
-                            Task { await lib.captureScreenshot(id: b.id) }
-                        }
-                    }
-                    if !b.isTrashed {
-                        Divider()
-                        Button(L.tr("Delete (Move to Trash)"), role: .destructive) {
-                            confirmDelete = true
-                        }
-                    }
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-
-                Button {
-                    lib.selectedId = nil
-                } label: {
-                    Image(systemName: "xmark")
-                }
-                .help(L.tr("Close Panel"))
-                .accessibilityLabel(L.tr("Close Details Panel"))
             }
             .controlSize(.regular)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 13)
+    }
+
+    /// زیرعنوان سربرگ: دامنه · تاریخ · وضعیت
+    private func headerSubtitle(_ b: Bookmark) -> String {
+        var parts: [String] = [b.domain, Dates.persian(b.createdAt)]
+        if !b.isRead { parts.append(L.tr("Unread")) }
+        if b.isArchived { parts.append(L.tr("Archived")) }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: پوشه و برچسب‌ها
@@ -442,12 +399,63 @@ struct DetailView: View {
 
             Spacer()
 
+            // منوی ابزارها و بستن پنل — در همین باکس زیرین، بدون کادر اضافه
+            Menu {
+                if b.isTrashed {
+                    Button(L.tr("Restore from Trash")) {
+                        lib.restore(ids: [b.id])
+                    }
+                    Button(L.tr("Delete Permanently"), role: .destructive) {
+                        confirmPurge = true
+                    }
+                    Divider()
+                }
+                Button(L.tr("Edit…")) {
+                    lib.editing = .edit(b)
+                }
+                Divider()
+                Button(L.tr("Ask the Assistant…")) {
+                    showAssistant = true
+                }
+                Divider()
+                Button(L.tr("Recheck")) {
+                    Task { await lib.recheck(id: b.id) }
+                }
+                if b.screenshot == nil, b.isWebPage {
+                    Button(L.tr("Capture Page Screenshot")) {
+                        Task { await lib.captureScreenshot(id: b.id) }
+                    }
+                }
+                if !b.isTrashed {
+                    Divider()
+                    Button(L.tr("Delete (Move to Trash)"), role: .destructive) {
+                        confirmDelete = true
+                    }
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+            }
+            .menuStyle(.borderlessButton)
+            .fixedSize()
+            .help(L.tr("More"))
+
             Button {
                 lib.editing = .edit(b)
             } label: {
                 Image(systemName: "pencil")
             }
+            .buttonStyle(.borderless)
             .help(L.tr("Edit Bookmark"))
+
+            Button {
+                lib.selectedId = nil
+            } label: {
+                Image(systemName: "xmark")
+                    .foregroundStyle(.red)
+            }
+            .buttonStyle(.borderless)
+            .help(L.tr("Close Panel"))
+            .accessibilityLabel(L.tr("Close Details Panel"))
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 9)

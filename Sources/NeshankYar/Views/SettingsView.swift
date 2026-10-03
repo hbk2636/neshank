@@ -11,7 +11,8 @@ struct SettingsView: View {
     @AppStorage("hotkey") private var hotkeyRaw = HotKeyChoice.space.rawValue
     @AppStorage("appearance") private var appearanceRaw = AppearanceChoice.system.rawValue
     @AppStorage("accentColor") private var accentRaw = AccentPreset.system.rawValue
-    @AppStorage("appTheme") private var themeRaw = UITheme.classic.rawValue
+    @AppStorage("appTheme") private var themeRaw = UITheme.ocean.rawValue
+    @AppStorage("uiDesign") private var designRaw = UIDesign.classic.rawValue
     @AppStorage("density") private var densityRaw = Density.comfortable.rawValue
 
     @AppStorage(AIConfig.baseURLKey) private var aiBaseURL = AIConfig.defaultBaseURL
@@ -33,6 +34,11 @@ struct SettingsView: View {
 
     private let accentColumns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 5)
     private let themeColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+    private let designColumns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 3)
+
+    /// طراحی فعال و تم فعال — تنظیماتی که برایشان معنا ندارند در تنظیمات نمایش داده نمی‌شوند
+    private var activeDesign: UIDesign { UIDesign(rawValue: designRaw) ?? .classic }
+    private var activeTheme: UITheme { UITheme(rawValue: themeRaw) ?? .classic }
 
     /// فهرست نمایشی انتخابگر مدل: مدل‌های سرویس + مقدار فعلی (اگر دستی و خارج از فهرست باشد)
     private var displayModels: [String] {
@@ -53,9 +59,12 @@ struct SettingsView: View {
                 Toggle(L.tr("Check links automatically on launch"), isOn: $checkOnLaunch)
                 Toggle(L.tr("Auto-fetch title, description and image when adding"), isOn: $autoFetch)
 
-                Picker(L.tr("Default View Mode"), selection: $lib.viewMode) {
-                    ForEach(Library.ViewMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
+                // حالت نمایش (فهرست/کارت/باکس) فقط برای چیدمان کلاسیک معنا دارد
+                if activeDesign == .classic {
+                    Picker(L.tr("Default View Mode"), selection: $lib.viewMode) {
+                        ForEach(Library.ViewMode.allCases) { mode in
+                            Text(mode.label).tag(mode)
+                        }
                     }
                 }
 
@@ -76,7 +85,7 @@ struct SettingsView: View {
             Section(L.tr("AI Assistant")) {
                 TextField(L.tr("Base URL (OpenAI-compatible)"), text: $aiBaseURL)
                     .textSelection(.enabled)
-                Text(L.tr("Example: https://opencode.ai/zen/go/v1 or https://api.openai.com/v1 — /chat/completions and /models are added automatically."))
+                Text(L.tr("Example: https://api.openai.com/v1 — /chat/completions and /models are added automatically."))
                     .font(.caption2)
                     .foregroundStyle(.tertiary)
 
@@ -158,7 +167,7 @@ struct SettingsView: View {
                         }
                     }
                 } else {
-                    TextField(L.tr("Model name (e.g. deepseek-v4.1-flash)"), text: $aiModel)
+                    TextField(L.tr("Model name (e.g. gpt-4o-mini)"), text: $aiModel)
                         .textSelection(.enabled)
                 }
 
@@ -212,6 +221,53 @@ struct SettingsView: View {
 
             Section(L.tr("Appearance")) {
                 VStack(alignment: .leading, spacing: 10) {
+                    Text(L.tr("Layout Design"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    LazyVGrid(columns: designColumns, spacing: 12) {
+                        ForEach(UIDesign.allCases) { item in
+                            Button {
+                                designRaw = item.rawValue
+                            } label: {
+                                VStack(spacing: 6) {
+                                    DesignPreview(design: item, theme: UITheme(rawValue: themeRaw) ?? .classic)
+                                        .frame(height: 64)
+                                        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(
+                                                designRaw == item.id
+                                                    ? Color.accentColor.opacity(0.8)
+                                                    : Color.primary.opacity(0.15),
+                                                lineWidth: designRaw == item.id ? 2 : 1
+                                            )
+                                        )
+                                    VStack(spacing: 1) {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: item.icon)
+                                                .font(.system(size: 9))
+                                            Text(item.label)
+                                                .font(.system(size: 11, weight: .semibold))
+                                        }
+                                        .foregroundStyle(designRaw == item.id ? Color.accentColor : Color.primary)
+                                        Text(item.tagline)
+                                            .font(.system(size: 9))
+                                            .foregroundStyle(.secondary)
+                                            .lineLimit(1)
+                                    }
+                                }
+                            }
+                            .buttonStyle(.plain)
+                            .help(item.tagline)
+                        }
+                    }
+
+                    Text(L.tr("The design changes the whole layout — navigation, widgets and tabs. Color themes apply on top of it."))
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+
+                VStack(alignment: .leading, spacing: 10) {
                     Text(L.tr("Theme"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -258,23 +314,23 @@ struct SettingsView: View {
                             .help(item.label)
                         }
                     }
+                }
 
-                    if UITheme(rawValue: themeRaw) != .classic {
-                        Text(L.tr("The theme sets its own light/dark look; “Light Mode” applies to Classic only."))
-                            .font(.caption2)
-                            .foregroundStyle(.tertiary)
+                // «حالت روشنایی» فقط برای تم کلاسیک اثر دارد؛ تم‌های دیگر طرح خودشان را تحمیل می‌کنند
+                if activeTheme == .classic {
+                    Picker(L.tr("Light Mode"), selection: $appearanceRaw) {
+                        ForEach(AppearanceChoice.allCases) { item in
+                            Text(item.label).tag(item.rawValue)
+                        }
                     }
                 }
 
-                Picker(L.tr("Light Mode"), selection: $appearanceRaw) {
-                    ForEach(AppearanceChoice.allCases) { item in
-                        Text(item.label).tag(item.rawValue)
-                    }
-                }
-
-                Picker(L.tr("List Density"), selection: $densityRaw) {
-                    ForEach(Density.allCases) { item in
-                        Text(item.label).tag(item.rawValue)
+                // چگالی فهرست فقط برای چیدمان کلاسیک معنا دارد
+                if activeDesign == .classic {
+                    Picker(L.tr("List Density"), selection: $densityRaw) {
+                        ForEach(Density.allCases) { item in
+                            Text(item.label).tag(item.rawValue)
+                        }
                     }
                 }
 

@@ -249,22 +249,24 @@ struct ChatsView: View {
     private var conversationHeader: some View {
         HStack(spacing: 8) {
             if let chat {
-                Image(systemName: chat.kind.icon)
-                    .foregroundStyle(AppTheme.accent ?? .accentColor)
-                Text(chat.title.isBlank || chat.title == "گفتگوی تازه" ? L.tr("New Library Chat") : chat.title)
-                    .font(.headline)
-                    .lineLimit(1)
+                // عنوان بدون تکرار: برای گفتگوی نشانک، نشانگر نشانک + عنوان (کلیک = نمایش در پنجرهٔ اصلی)
                 if let bm = chat.bookmarkId, let b = lib.bookmark(id: bm) {
                     Button {
                         lib.selectedId = bm
                     } label: {
-                        HStack(spacing: 4) {
-                            FaviconView(path: b.favicon, size: 13)
-                            Text(b.displayTitle).font(.caption).lineLimit(1)
+                        HStack(spacing: 5) {
+                            FaviconView(path: b.favicon, size: 14)
+                            Text(b.displayTitle)
+                                .font(.headline)
+                                .lineLimit(1)
                         }
                     }
                     .buttonStyle(.plain)
                     .help(L.tr("Show this bookmark in the main window"))
+                } else {
+                    Text(chat.title.isBlank || chat.title == "گفتگوی تازه" ? L.tr("New Library Chat") : chat.title)
+                        .font(.headline)
+                        .lineLimit(1)
                 }
             } else {
                 Text(L.tr("No Chat Selected"))

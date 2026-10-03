@@ -295,7 +295,7 @@ final class Library: ObservableObject {
         WHERE folder_id IS NOT NULL AND folder_id NOT IN (SELECT id FROM folders);
         """)
 
-        // جدول mind_maps عمداً بدون seed است: نصب تازه هیچ نقشهٔ نمونه‌ای ندارد.
+        // mind_maps در seedIfNeeded با دو نقشهٔ نمونهٔ SeedContent پر می‌شود.
         // نقشه‌ها ردیف‌های مستقل‌اند و با هر تولید تازه یک شناسهٔ جدید می‌گیرند.
         // کش قدیمی مربوط به نسخهٔ آزمایشی و تک‌نقشه‌ای را حذف می‌کنیم.
         try? db.exec("DROP TABLE IF EXISTS mindmap_cache;")
@@ -419,11 +419,55 @@ final class Library: ObservableObject {
     private func seedIfNeeded() {
         let n = (try? db.scalarInt("SELECT COUNT(*) FROM folders")) ?? 0
         guard n == 0 else { return }
-        // نام‌ها به زبان رابط برنامه؛ در دیتابیس ذخیره می‌شوند ولی بومی‌سازی بعدی
-        // از طریق نمایش، و تغییر نام کاربر همیشه ممکن است.
-        for (i, name) in [L.tr("Reading List"), L.tr("Work"), L.tr("Entertainment")].enumerated() {
-            _ = try? db.run("INSERT INTO folders(name, pos) VALUES (?, ?)", [.text(name), .int(Int64(i))])
+        // محتوای آغازین برای کاربر تازه: سه پوشهٔ نمونه + چهار بوکمارک واقعی
+        // (هوش مصنوعی و خرید آنلاین) تا «سهولت استفاده» با مثال آماده یاد گرفته شود.
+        // نام‌ها عمداً انگلیسیِ ثابت‌اند — زبان پیش‌فرض نصب تازه انگلیسی است و
+        // محتوای seed نباید به زبان لحظهٔ اجرا وابسته بماند.
+        var aiFolder: Int64?
+        var shopFolder: Int64?
+        for (i, name) in ["Artificial Intelligence", "Online Shopping", "Read Later"].enumerated() {
+            if let id = try? db.run("INSERT INTO folders(name, pos) VALUES (?, ?)", [.text(name), .int(Int64(i))]) {
+                if i == 0 { aiFolder = id }
+                if i == 1 { shopFolder = id }
+            }
         }
+        seedBookmark(url: "https://chatgpt.com",
+                     title: "ChatGPT — AI Assistant",
+                     note: "Ask questions and write with AI help",
+                     folderId: aiFolder)
+        seedBookmark(url: "https://huggingface.co",
+                     title: "Hugging Face — AI Models & Tools",
+                     note: "",
+                     folderId: aiFolder)
+        seedBookmark(url: "https://www.amazon.com",
+                     title: "Amazon — Online Shopping",
+                     note: "Compare prices before you buy",
+                     folderId: shopFolder)
+        seedBookmark(url: "https://www.aliexpress.com",
+                     title: "AliExpress — Global Marketplace",
+                     note: "",
+                     folderId: shopFolder)
+        // چهار نقشهٔ ذهنی نمونه (۴ زبان) — خروجی واقعی پایپ‌لاین اپ (نام مدل خالی شده)
+        for m in SeedContent.maps {
+            _ = createMindMap(title: m.title,
+                              sourceURL: m.sourceURL,
+                              markdown: SeedContent.markdown(from: m.json),
+                              json: m.json,
+                              model: "",
+                              language: m.language)
+        }
+    }
+
+    /// درج همگام بوکمارک برای seed — همان ستون‌های `add`، بدون واکشی متادیتا
+    private func seedBookmark(url: String, title: String, note: String, folderId: Int64?) {
+        guard let u = URLNormalizer.url(url) else { return }
+        let now = Date().timeIntervalSince1970
+        guard let id = try? db.run("""
+            INSERT INTO bookmarks(url, title, note, domain, folder_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, [.text(u.absoluteString), .text(title), .text(note), .text(URLNormalizer.domain(u)),
+                  folderId.map { .int($0) } ?? .null, .real(now), .real(now)]) else { return }
+        if let b = bookmark(id: id) { indexFTS(b) }
     }
 
     // MARK: - بارگذاری

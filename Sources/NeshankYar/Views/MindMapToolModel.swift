@@ -67,6 +67,8 @@ final class MindMapToolModel: ObservableObject {
     @Published var warningText: String?
     @Published var errorTitle: String?
     @Published var errorDetail: String?
+    /// خطا از سمت سرویس هوش مصنوعی بوده (مرحلهٔ تحلیل) — کارت راهنمای اتصال باز شود
+    @Published var apiProblem = false
     @Published var pasteTitle = ""
     @Published var pasteBody = ""
     @Published var unsavedChanged = false
@@ -131,6 +133,7 @@ final class MindMapToolModel: ObservableObject {
         warningText = nil
         errorTitle = nil
         errorDetail = nil
+        apiProblem = false
         pasteTitle = ""
         pasteBody = ""
         unsavedChanged = false
@@ -231,6 +234,8 @@ final class MindMapToolModel: ObservableObject {
                 stopByUser()
             } catch {
                 let detail = error.localizedDescription
+                // شکست در مرحلهٔ «تحلیل هوش مصنوعی» (ایندکس ۳) یعنی مشکل از سرویس/کلید/مدل است
+                if steps[3] == .running { apiProblem = true }
                 if let running = steps.firstIndex(where: { if case .running = $0 { return true }; return false }) {
                     steps[running] = .failed(detail)
                 }

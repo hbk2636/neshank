@@ -670,6 +670,8 @@ struct ListView: View {
                     }
                 }
                 Divider()
+                ShellToolsSection()
+                Divider()
                 Button {
                     Task { await lib.checkAllLinks() }
                 } label: {

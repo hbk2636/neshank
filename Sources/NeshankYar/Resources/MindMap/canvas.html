@@ -238,7 +238,7 @@ const PALETTES = {
 };
 const THEME_NAMES = ['light', 'dark', 'forest', 'ocean',
                      'sunset', 'lavender', 'mono', 'sand', 'sakura', 'mint'];
-const LAYOUT_NAMES = ['tree', 'org', 'radial', 'outline', 'timeline'];
+const LAYOUT_NAMES = ['tree', 'org', 'radial', 'outline', 'timeline', 'mindmap'];
 let layoutName = 'tree';
 
 let nodes = new Map();   // id -> {id, text, note, parentId, childIds, branch, el, card, txt, x, y, w, h, depth}
@@ -303,6 +303,7 @@ function autoLayout() {
   if (layoutName === 'radial') return layoutRadial();
   if (layoutName === 'outline') return layoutOutline();
   if (layoutName === 'timeline') return layoutTimeline();
+  if (layoutName === 'mindmap') return layoutBalanced();
   layoutTree();
 }
 
@@ -409,7 +410,9 @@ function layoutOutline() {
     const n = nodes.get(id);
     n.depth = depth;
     n.branch = depth === 0 ? -1 : (branchOf.get(id) ?? 0);
-    n.x = depth * INDENT;
+    // لبهٔ چپ همهٔ گره‌های هم‌عمق در یک خط: مرکز = تورفتگی + نصف عرض خودش
+    // (applyPositions مرکز-چین است؛ بدون این، کارت‌ها از دو طرف بیرون می‌زدند و روی هم می‌افتادند)
+    n.x = depth * INDENT + n.w / 2;
     n.y = cursor + n.h / 2;
     cursor += n.h + V_STEP;
     if (!(depth > 0 && collapsed.has(id))) for (const k of n.childIds) walk(k, depth + 1);
@@ -444,6 +447,37 @@ function layoutTimeline() {
   const half = Math.ceil(kids.length / 2);
   packSide(kids.slice(0, half), -1);
   packSide(kids.slice(half), +1);
+}
+
+/* نقشهٔ ذهنی متوازن (دوطرفهٔ چپ/راست) — سبک کلاسیک: ریشه وسط،
+   شاخه‌های اصلی یکی‌درمیان راست و چپ، نسل‌های بعد به سمت بیرون.
+   دکمهٔ «جهت ریشه» دو طرف را آینه می‌کند. */
+function layoutBalanced() {
+  const branchOf = buildBranchColors();
+  const mirror = dirSign >= 0 ? 1 : -1;
+  const root = nodes.get(rootId);
+  root.depth = 0; root.branch = -1; root.x = 0; root.y = 0;
+  const packSide = (ids, sign) => {
+    let cursor = 0;
+    const place = (id, depth) => {
+      const n = nodes.get(id);
+      n.depth = depth;
+      n.branch = branchOf.get(id) ?? 0;
+      const kids = visibleKids(n);
+      if (!kids.length) {
+        n.y = cursor + n.h / 2;
+        cursor += n.h + Y_GAP;
+      } else {
+        for (const k of kids) place(k, depth + 1);
+        n.y = (nodes.get(kids[0]).y + nodes.get(kids[kids.length - 1]).y) / 2;
+      }
+      n.x = sign * depth * X_GAP;
+    };
+    for (const k of ids) place(k, 1);
+  };
+  const kids = root.childIds.slice();
+  packSide(kids.filter((_, i) => i % 2 === 0), +1 * mirror);
+  packSide(kids.filter((_, i) => i % 2 === 1), -1 * mirror);
 }
 
 function applyLayoutName(name, notify) {
@@ -532,7 +566,7 @@ function refreshVisibility() {
   drawWires();
 }
 
-function anchor(n, toChild) {
+function anchor(n, toChild, other) {
   // نقطهٔ اتصال روی لبهٔ گره — بسته به چیدمان
   if (layoutName === 'org') {
     return toChild ? { x: n.x, y: n.y + n.h / 2 } : { x: n.x, y: n.y - n.h / 2 };
@@ -540,7 +574,15 @@ function anchor(n, toChild) {
   if (layoutName === 'radial') {
     return { x: n.x, y: n.y };
   }
-  const s = dirSign >= 0 ? 1 : -1;
+  if (layoutName === 'outline') {
+    // فرزند زیر والد است، نه کنارش: اتصال عمودی (پایین والد → بالای فرزند)
+    return toChild ? { x: n.x, y: n.y + n.h / 2 } : { x: n.x, y: n.y - n.h / 2 };
+  }
+  // لبهٔ روبه‌رو: اگر گرهٔ مقابل داده شده و سمت دیگر است، از همان سمت وصل می‌شویم؛
+  // وگرنه رفتار قبلی (سمتِ dirSign). برای چیدمان‌های خودکار فرقی ندارد چون
+  // فرزند همیشه سمتِ dirSign است؛ فقط گره‌های دستی/درگ‌شدهٔ سمت مخالف درست می‌شوند.
+  let s = dirSign >= 0 ? 1 : -1;
+  if (other && typeof other.x === 'number' && other.x !== n.x) s = other.x > n.x ? 1 : -1;
   return toChild
     ? { x: n.x + s * n.w / 2, y: n.y }
     : { x: n.x - s * n.w / 2, y: n.y };
@@ -566,7 +608,7 @@ function drawWires() {
     if (!n.parentId || !isVisible(n)) continue;
     const p = nodes.get(n.parentId);
     if (!p || !isVisible(p)) continue;
-    const a = anchor(p, true), b = anchor(n, false);
+    const a = anchor(p, true, n), b = anchor(n, false, p);
     const color = branchColor(n.branch) || palette[0];
     let path;
     if (layoutName === 'org') {
@@ -575,6 +617,11 @@ function drawWires() {
              `${f(b.x - ox)} ${f(my - oy)}, ${f(b.x - ox)} ${f(b.y - oy)}`;
     } else if (layoutName === 'radial') {
       path = `M ${f(a.x - ox)} ${f(a.y - oy)} L ${f(b.x - ox)} ${f(b.y - oy)}`;
+    } else if (layoutName === 'outline') {
+      // اتصال عمودی: مماس‌ها عمودی‌اند تا سیم از روی ردیف‌های دیگر رد نشود
+      const my = (a.y + b.y) / 2;
+      path = `M ${f(a.x - ox)} ${f(a.y - oy)} C ${f(a.x - ox)} ${f(my - oy)}, ` +
+             `${f(b.x - ox)} ${f(my - oy)}, ${f(b.x - ox)} ${f(b.y - oy)}`;
     } else {
       const mx = (a.x + b.x) / 2;
       path = `M ${f(a.x - ox)} ${f(a.y - oy)} C ${f(mx - ox)} ${f(a.y - oy)}, ` +

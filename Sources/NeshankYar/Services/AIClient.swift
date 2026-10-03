@@ -55,8 +55,9 @@ enum KeychainStore {
 /// کاربر آدرس پایه، کلید و مدل را در تنظیمات می‌دهد؛ مدل یا دستی وارد می‌شود
 /// یا از فهرست مدل‌های همان سرویس (GET /models) انتخاب می‌شود.
 struct AIConfig: Sendable {
-    static let defaultBaseURL = "https://opencode.ai/zen/go/v1"
-    static let defaultModel = "deepseek-v4.1-flash"
+    // پیش‌فرض خالی: کاربر سرویس، کلید و مدل خودش را در تنظیمات وارد می‌کند
+    static let defaultBaseURL = ""
+    static let defaultModel = ""
 
     static let baseURLKey = "aiBaseURL"
     /// کلید API دیگر در UserDefaults ذخیره نمی‌شود؛ این کلید فقط برای مهاجرتِ
@@ -173,7 +174,7 @@ enum AIClient {
             case .noModels:
                 return L.tr("The service returned no models; enter the model name manually.")
             case .unsupportedModel(let m):
-                return L.tf("This model is not compatible with the service chat protocol — in Settings → AI Assistant, pick another model from the list (e.g. deepseek-v4.1-flash). Service message: %@", m)
+                return L.tf("This model is not compatible with the service chat protocol — in Settings → AI Assistant, pick another model from the list (e.g. gpt-4o-mini). Service message: %@", m)
             }
         }
 

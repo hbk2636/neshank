@@ -22,7 +22,9 @@ struct RootView: View {
     @AppStorage("paneDetailWidth") private var detailWidth: Double = 520
     @AppStorage("appearance") private var appearanceRaw = AppearanceChoice.system.rawValue
     @AppStorage("accentColor") private var accentRaw = AccentPreset.system.rawValue
-    @AppStorage("appTheme") private var themeRaw = UITheme.classic.rawValue
+    @AppStorage("appTheme") private var themeRaw = UITheme.ocean.rawValue
+    /// طراحی رابط (چیدمان) — جدا از تم رنگی
+    @AppStorage("uiDesign") private var designRaw = UIDesign.classic.rawValue
 
     private var appearance: AppearanceChoice {
         AppearanceChoice(rawValue: appearanceRaw) ?? .system
@@ -30,6 +32,10 @@ struct RootView: View {
 
     private var theme: UITheme {
         UITheme(rawValue: themeRaw) ?? .classic
+    }
+
+    private var design: UIDesign {
+        UIDesign(rawValue: designRaw) ?? .classic
     }
 
     /// پس‌زمینهٔ گرادیانی تم (classic = بدون پس‌زمینه) — جدا از body برای سرعت کامپایل
@@ -63,6 +69,111 @@ struct RootView: View {
     }
 
     var body: some View {
+        designRoot
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(minWidth: 1000, minHeight: 640)
+            .environment(\.appTheme, theme)
+            .environment(\.uiDesign, design)
+            // پس‌زمینهٔ گرادیانی تم؛ classic پس‌زمینه ندارد (Vibrancy سیستمی)
+            .background(themeBackground)
+            .background(WindowThemeApplier(base: theme.windowBaseNS, scheme: theme.scheme))
+            .environment(\.layoutDirection, L.direction)
+            .tint(accent)
+            .preferredColorScheme(theme.scheme ?? appearance.scheme)
+            // رها کردن لینک از مرورگر/هر برنامه‌ای روی پنجره
+            .onDrop(of: [.url, .fileURL, .plainText], isTargeted: $dropTargeted, perform: handleDrop)
+            .overlay {
+                if dropTargeted {
+                    dropOverlay
+                }
+            }
+            .sheet(item: $lib.editing) { target in
+                EditorSheet(target: target)
+            }
+            .overlay {
+                if let page {
+                    ZStack {
+                        Color.black.opacity(0.14)
+                            .ignoresSafeArea()
+                            .onTapGesture { self.page = nil }
+
+                        Group {
+                            switch page {
+                            case .chats:
+                                ChatsView(onClose: { self.page = nil })
+                            }
+                        }
+                        .padding(18)
+                        .background(.regularMaterial)
+                        .opaquePanelBacking()
+                        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
+                        )
+                        .shadow(color: .black.opacity(0.35), radius: 30, y: 8)
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .overlay {
+                if showPalette {
+                    ZStack(alignment: .top) {
+                        Color.black.opacity(0.16)
+                            .ignoresSafeArea()
+                            .onTapGesture { showPalette = false }
+                        CommandPalette(isPresented: $showPalette)
+                            .padding(.top, 86)
+                    }
+                    .transition(.opacity)
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showChats)) { _ in
+                page = .chats
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .showPalette)) { _ in
+                showPalette.toggle()
+            }
+            .overlay(alignment: .bottom) { toast }
+            .animation(.easeInOut(duration: 0.2), value: lib.notice)
+            .onReceive(NotificationCenter.default.publisher(for: .newBookmark)) { _ in
+                lib.editing = .new(folderId: currentFolderId)
+            }
+            .task {
+                if UserDefaults.standard.bool(forKey: "checkOnLaunch") {
+                    await lib.checkAllLinks()
+                }
+            }
+            .onAppear {
+                if lib.storageError != nil { showStorageAlert = true }
+            }
+            .onChange(of: lib.storageError) { err in
+                if err != nil { showStorageAlert = true }
+            }
+            .alert(L.tr("Storage Problem"), isPresented: $showStorageAlert) {
+                Button(L.tr("Quit")) { NSApp.terminate(nil) }
+                Button(L.tr("Continue without saving")) {}
+            } message: {
+                Text(lib.storageError ?? "")
+            }
+    }
+
+    /// ریشهٔ طراحی فعال: هر طراحی چیدمان کامل خودش را دارد؛
+    /// امکانات سراسری (دراپ، پالت، توست و…) در body بالای این می‌آیند.
+    @ViewBuilder
+    private var designRoot: some View {
+        switch design {
+        case .classic: classicLayout
+        case .aurora: AuroraShell()
+        case .focus: FocusShell()
+        case .dashboard: DashboardShell()
+        case .atlas: AtlasShell()
+        case .orbit: OrbitShell()
+        }
+    }
+
+    /// چیدمان سه‌ستونهٔ کلاسیک (پیش‌فرض)
+    private var classicLayout: some View {
         GeometryReader { geo in
             // عرضهای مجاز بر حسب فضای واقعی پنجره —
             // هدف: پیش‌نمایش/مرورگر تا جای ممکن بزرگ شود و فقط به کمینهٔ واقعی فهرست و سایدبار بندد.
@@ -113,90 +224,6 @@ struct RootView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .animation(.easeInOut(duration: 0.18),
                        value: lib.selectedId == nil && lib.selectedMindMapId == nil)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .environment(\.appTheme, theme)
-        // پس‌زمینهٔ گرادیانی تم؛ classic پس‌زمینه ندارد (Vibrancy سیستمی)
-        .background(themeBackground)
-        .background(WindowThemeApplier(base: theme.windowBaseNS, scheme: theme.scheme))
-        .environment(\.layoutDirection, L.direction)
-        .frame(minWidth: 1000, minHeight: 640)
-        .tint(accent)
-        .preferredColorScheme(theme.scheme ?? appearance.scheme)
-        // رها کردن لینک از مرورگر/هر برنامه‌ای روی پنجره
-        .onDrop(of: [.url, .fileURL, .plainText], isTargeted: $dropTargeted, perform: handleDrop)
-        .overlay {
-            if dropTargeted {
-                dropOverlay
-            }
-        }
-        .sheet(item: $lib.editing) { target in
-            EditorSheet(target: target)
-        }
-        .overlay {
-            if let page {
-                ZStack {
-                    Color.black.opacity(0.14)
-                        .ignoresSafeArea()
-                        .onTapGesture { self.page = nil }
-
-                    Group {
-                        switch page {
-                        case .chats:
-                            ChatsView(onClose: { self.page = nil })
-                        }
-                    }
-                    .padding(18)
-                    .background(.regularMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
-                    )
-                    .shadow(color: .black.opacity(0.35), radius: 30, y: 8)
-                }
-                .transition(.opacity)
-            }
-        }
-        .overlay {
-            if showPalette {
-                ZStack(alignment: .top) {
-                    Color.black.opacity(0.16)
-                        .ignoresSafeArea()
-                        .onTapGesture { showPalette = false }
-                    CommandPalette(isPresented: $showPalette)
-                        .padding(.top, 86)
-                }
-                .transition(.opacity)
-            }
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showChats)) { _ in
-            page = .chats
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .showPalette)) { _ in
-            showPalette.toggle()
-        }
-        .overlay(alignment: .bottom) { toast }
-        .animation(.easeInOut(duration: 0.2), value: lib.notice)
-        .onReceive(NotificationCenter.default.publisher(for: .newBookmark)) { _ in
-            lib.editing = .new(folderId: currentFolderId)
-        }
-        .task {
-            if UserDefaults.standard.bool(forKey: "checkOnLaunch") {
-                await lib.checkAllLinks()
-            }
-        }
-        .onAppear {
-            if lib.storageError != nil { showStorageAlert = true }
-        }
-        .onChange(of: lib.storageError) { err in
-            if err != nil { showStorageAlert = true }
-        }
-        .alert(L.tr("Storage Problem"), isPresented: $showStorageAlert) {
-            Button(L.tr("Quit")) { NSApp.terminate(nil) }
-            Button(L.tr("Continue without saving")) {}
-        } message: {
-            Text(lib.storageError ?? "")
         }
     }
 

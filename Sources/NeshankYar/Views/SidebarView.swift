@@ -402,25 +402,47 @@ extension SidebarView {
 
     /// نقطهٔ ورود ابزار «طراحی نقشه ذهنی»؛ نشانک انتخاب‌شده به‌صورت خودکار پر می‌شود.
     private var toolsRow: some View {
-        Button {
-            let selected = lib.selectedId.flatMap { lib.bookmark(id: $0) }
-            MindMapToolWindow.shared.show(bookmark: selected)
-        } label: {
-            HStack(spacing: 8) {
-                Image(systemName: "brain.head.profile")
-                    .frame(width: 16)
-                    .foregroundStyle(.secondary)
-                Text(L.tr("Mind Map Designer"))
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 9, weight: .semibold))
-                    .foregroundStyle(.tertiary)
+        VStack(spacing: 2) {
+            Button {
+                let selected = lib.selectedId.flatMap { lib.bookmark(id: $0) }
+                MindMapToolWindow.shared.show(bookmark: selected)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "brain.head.profile")
+                        .frame(width: 16)
+                        .foregroundStyle(.secondary)
+                    Text(L.tr("Mind Map Designer"))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .help(L.tr("Separate window: turn a web page into a mind map"))
+
+            Button {
+                let selected = lib.selectedId.flatMap { lib.bookmark(id: $0) }
+                VideoDownloadToolWindow.shared.show(bookmark: selected)
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.down.circle")
+                        .frame(width: 16)
+                        .foregroundStyle(.secondary)
+                    Text(L.tr("Video Downloader"))
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help(L.tr("Separate window: download a video"))
         }
-        .buttonStyle(.plain)
-        .help(L.tr("Separate window: turn a web page into a mind map"))
     }
 
     // MARK: فیلترهای ذخیره‌شده

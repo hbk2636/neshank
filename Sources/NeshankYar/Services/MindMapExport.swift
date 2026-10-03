@@ -52,7 +52,7 @@ enum MindMapTheme: String, CaseIterable, Identifiable {
 // MARK: - چیدمان‌های نقشهٔ ذهنی (نام‌ها با LAYOUT_NAMES در canvas.html یکی است)
 
 enum MindMapLayout: String, CaseIterable, Identifiable {
-    case tree, org, radial, outline, timeline
+    case tree, org, radial, outline, timeline, mindmap
 
     var id: String { rawValue }
 
@@ -62,7 +62,8 @@ enum MindMapLayout: String, CaseIterable, Identifiable {
         case .org: return L.tr("Organizational (Vertical)")
         case .radial: return L.tr("Radial")
         case .outline: return L.tr("Outline")
-        case .timeline: return L.tr("Two-Sided (Timeline)")
+        case .timeline: return L.tr("Timeline (Top–Bottom)")
+        case .mindmap: return L.tr("Mind Map (Two-Sided)")
         }
     }
 
@@ -73,6 +74,7 @@ enum MindMapLayout: String, CaseIterable, Identifiable {
         case .radial: return "circle.hexagongrid"
         case .outline: return "text.alignleft"
         case .timeline: return "arrow.left.and.right.circle"
+        case .mindmap: return "arrow.left.and.right"
         }
     }
 
