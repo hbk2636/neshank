@@ -174,7 +174,7 @@ Local **SQLite** library; archived page text, screenshots and favicon caches sta
 
 ## #️⃣ Tags & keywords
 
-`#macos` `#mac` `#apple` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#offline-first` `#privacy` `#rtl` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management` `#chinese` `#russian` `#i18n`
+`#macos` `#mac` `#apple` `#dmg` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#offline-first` `#privacy` `#rtl` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management` `#chinese` `#russian` `#i18n`
 
 <a id="chinese"></a>
 ## 简体中文
