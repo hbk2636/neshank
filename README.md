@@ -1,13 +1,14 @@
 <a id="english"></a>
 <div align="center">
   <img src="./Resources/logo.png" alt="Neshank logo" width="110">
-  <h1>📌 Neshank · نشانک</h1>
+  <h1>📌 Neshank</h1>
   <p>
     <b>Native, offline-first bookmark manager for macOS</b> — folders &amp; full-text search,
     AI chat about your saved links, link&nbsp;→&nbsp;visual&nbsp;mind&nbsp;map,
-    a built-in free video downloader, and a menu-bar quick box.<br>
-    <b>مدیر نشانک بومی مک با رابط فارسی راست‌به‌چپ</b> — همه‌چیز محلی، بدون حساب، بدون ابر.
+    a built-in free video downloader, and a menu-bar quick box.
   </p>
+  <p>原生离线 macOS 书签管理器 — AI 对话、思维导图、内置免费视频下载器。</p>
+  <p dir="rtl">مدیر نشانک بومی مک — گفتگوی AI، نقشهٔ ذهنی، دانلودر رایگان، کاملاً آفلاین.</p>
   <p>
     <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%C2%B7%20Apple%20Silicon-1f6feb" alt="macOS 13+ · Apple Silicon">
     <img src="https://img.shields.io/badge/Swift%20%C2%B7%20SwiftUI-f05138" alt="Swift · SwiftUI">
@@ -16,14 +17,14 @@
     <a href="https://github.com/hbk2636/neshank/actions/workflows/ci.yml"><img src="https://github.com/hbk2636/neshank/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
   </p>
-  <p>English · <a href="#persian">فارسی</a> · <a href="../../releases/latest">⬇️ Download v1</a></p>
+  <p>English · <a href="#chinese">简体中文</a> · <a href="#persian">فارسی</a> · <a href="../../releases/latest">⬇️ Download v1</a></p>
 </div>
 
 Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for macOS** built with **SwiftUI + SQLite** — no Electron, no cloud, no account, no Xcode required to build. It replaces a folder of scattered links with a fast, offline-first library where every saved page is **archived, searchable and ready to talk to**.
 
 <table>
   <tr>
-    <td><img src="./docs/assets/screenshot-main.png" width="100%" alt="Neshank main window — bookmark library with folders, search and RTL Persian UI"></td>
+    <td><img src="./docs/assets/screenshot-main.png" width="100%" alt="Neshank main window — bookmark library with folders, tags and instant search"></td>
     <td><img src="./docs/assets/screenshot-mindmap.png" width="100%" alt="Link to visual mind map generator with 6 layouts and color themes"></td>
   </tr>
   <tr>
@@ -65,7 +66,7 @@ Neshank (**نشانک**, "bookmark") is an open-source **bookmark manager for ma
 
 **6. Download video — free, built-in.** A complete **video downloader for macOS** ships inside the app: **YouTube, Aparat, SoundCloud, TikTok, Dailymotion and 1,700+ other sites** through a bundled, auto-updating `yt-dlp` engine plus `ffmpeg` — zero setup, no account, no server, no paid API. Paste a URL (or click a YouTube bookmark, which is auto-detected as “ready to download”), watch live progress, and save to the folder you chose. Video metadata — title, channel, duration, thumbnail — fills a new bookmark without opening the browser, and subtitles can be archived into the library so your deep search and AI assistant can search *inside videos* too. Version 1 supports up to **720p**; higher qualities are on the roadmap. It is the best free YouTube downloader for Mac that also works as a generic video downloader — while you should always respect each site’s terms of service.
 
-**First-class Persian, native everywhere.** The whole interface is right-to-left Persian with Persian numerals and calendar month grouping — plus complete English, Russian and Chinese localizations (all labels live in one localization dictionary with CI-checked health). Six full UI design shells let the app become whatever you want: a classic three-pane Mac browser-style library, a glassy Aurora tab-bar with big visual cards, a typographic Focus column, a widget Dashboard with tag clouds, an Atlas catalogue with serif typography, or an Orbit tile launcher — with10 accent colors, 6 gradient themes and light/dark on top.
+**Multilingual — English, 简体中文, فارسی, Русский.** Built English-first: complete English UI and documentation, a full Simplified Chinese interface, Persian with a first-class right-to-left layout (Persian numerals, calendar month grouping) — and Russian. Every label lives in one localization dictionary with CI-checked health. Six full UI design shells let the app become whatever you want: a classic three-pane Mac browser-style library, a glassy Aurora tab-bar with big visual cards, a typographic Focus column, a widget Dashboard with tag clouds, an Atlas catalogue with serif typography, or an Orbit tile launcher — with10 accent colors, 6 gradient themes and light/dark on top.
 
 **Native, small, private.** Built with **SwiftUI + SQLite (WAL, FTS5)** — no Electron, no bundled browser runtime, no telemetry, no account, no cloud sync, no subscription. Everything lives in `~/Library/Application Support/NeshankYar/`. The app works fully offline; the network is only used for fetching page metadata, screenshots, link checks, downloads and *your* AI provider. It targets Apple Silicon on macOS 13+, is ad-hoc signed, builds with only the Command Line Tools (**no Xcode needed**), and is released under the **MIT** license with a **57-check test suite** running in GitHub Actions on every push.
 
@@ -163,7 +164,27 @@ Local **SQLite** library; archived page text, screenshots and favicon caches sta
 
 ## #️⃣ Tags & keywords
 
-`#macos` `#mac` `#apple` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#yt-dlp` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#local-first` `#offline-first` `#privacy` `#rtl` `#persian` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management`
+`#macos` `#mac` `#apple` `#bookmarks` `#bookmark-manager` `#read-later` `#productivity` `#mindmap` `#mind-map` `#brainstorming` `#video-downloader` `#youtube-downloader` `#youtube` `#yt-dlp` `#downloader` `#ai` `#ai-assistant` `#chatbot` `#chatgpt` `#openai` `#ollama` `#llm` `#swiftui` `#swift` `#local-first` `#offline-first` `#privacy` `#rtl` `#persian` `#farsi` `#open-source` `#sqlite` `#full-text-search` `#knowledge-management` `#chinese` `#i18n`
+
+<a id="chinese"></a>
+## 简体中文
+
+**Neshank（书签）** 是一款专为 macOS 打造的 **原生、离线优先的书签管理器** — 免费开源（MIT），基于 SwiftUI + SQLite 构建，无需安装 Xcode。
+
+| 功能 | 说明 |
+|---|---|
+| 📦 菜单栏快速添加 | 菜单栏小工具一键保存链接；全局快捷键 **⌘⇧Space** 在任何应用中唤起快速添加面板（无需辅助功能权限） |
+| 🗂️ 整理与检索 | 多级文件夹、多标签、**全文搜索**（含已存档网页正文，SQLite FTS5）、页面截图、死链检查、回收站 ⌘Z、Safari/Chrome/Firefox 导入导出 |
+| 🤖 AI 对话 | 连接任意 OpenAI 兼容 `/v1` 服务（OpenAI、OpenRouter、本地 **Ollama**）——针对单个链接或整个书签库提问，回答带编号引用 [1] [2]；针对**小模型 / 免费模型**专门优化 |
+| 🧠 链接 → 思维导图 | **6 种布局模板**、多套配色，完全离线渲染；地图 / 树 / Markdown / JSON 四个实时视图 |
+| ⬇️ 内置视频下载器 | YouTube、Aparat、SoundCloud、TikTok、Dailymotion 等 **1700+ 网站**（内置 yt-dlp），零配置、无需账号；v1 最高 720p |
+| 🔒 隐私 | 完全离线优先：无账号、无云同步、无遥测，数据只保存在你的 Mac 上 |
+
+**快捷键：** ⌘N 新建 · ⌘⇧Space 全局快速添加 · ⌘K 命令面板 · ⌘⇧D AI 助手 · ⌘⇧T 今日页 · ⌘⇧C 对话页 · ⌘F 搜索
+
+**安装：** 从 [Releases](../../releases/latest) 下载 `Neshank-1.dmg` → 打开 → 拖入「应用程序」。首次启动请 **右键 → 打开**（ad-hoc 签名）。系统要求：**macOS 13+（Apple Silicon）**。
+
+[English](#english) · [فارسی](#persian)
 
 ---
 
