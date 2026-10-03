@@ -13,6 +13,7 @@
     <img src="https://img.shields.io/badge/Swift%20%C2%B7%20SwiftUI-f05138" alt="Swift · SwiftUI">
     <img src="https://img.shields.io/badge/version-1.0-blue" alt="version 1.0">
     <img src="https://img.shields.io/badge/tests-57%20passed-brightgreen" alt="57 tests passed">
+    <a href="https://github.com/hbk2636/neshank/actions/workflows/ci.yml"><img src="https://github.com/hbk2636/neshank/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/license-MIT-green" alt="MIT license">
   </p>
   <p>English · <a href="#persian">فارسی</a> · <a href="../../releases/latest">⬇️ Download v1</a></p>
