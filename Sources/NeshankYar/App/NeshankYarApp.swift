@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import QuartzCore
 
 extension Notification.Name {
     static let newBookmark = Notification.Name("NeshankYar.newBookmark")
@@ -165,6 +166,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 print("WINDBG: " + NSApp.windows.map {
                     "\($0.title)|key=\($0.isKeyWindow)|vis=\($0.isVisible)|n=\($0.contentView != nil)"
                 }.joined(separator: " ;; "))
+                // hi-res capture: grow visible windows to the full physical screen first
+                if let screen = NSScreen.main {
+                    for w in NSApp.windows where w.isVisible { w.setFrame(screen.visibleFrame, display: true) }
+                    CATransaction.flush()
+                    Thread.sleep(forTimeInterval: 0.4)
+                }
                 if let win = (openYtdlp
                                   ? NSApp.windows.first { $0.title.contains("ویدیو") || $0.title.contains("Video") }
                                   : (openMindmap || !mindmapAutoURL.isEmpty
