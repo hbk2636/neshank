@@ -1,8 +1,9 @@
 #!/bin/zsh
-# اجرای تست‌های لایهٔ منطق + تست‌های ایمنی داده (بک‌آپ/مهاجرت/node_count)
-# XCTest با CommandLineTools در دسترس نیست؛ مثل بقیهٔ پروژه با swiftc در حالت Swift 5 کامپایل می‌شود.
-# فایل‌های App/ و Views/ حذف می‌شوند: @main با کد سطح‌بالای فایل تست تداخل دارد.
-# استفاده: Scripts/run_tests.sh
+# Run the logic-layer tests + data-safety tests (backup / migration / node_count)
+# XCTest is unavailable with bare Command Line Tools; like the rest of the project,
+# we compile with swiftc in Swift 5 mode. App/ and Views/ are excluded because
+# @main clashes with the test file's top-level code.
+# Usage: Scripts/run_tests.sh
 set -e
 cd "$(dirname "$0")/.."
 

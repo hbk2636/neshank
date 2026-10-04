@@ -16,5 +16,5 @@ jobs:
       - name: Build
         run: swift build
 
-      - name: Tests (خروجی ۱ یعنی شکست)
+      - name: Tests (exit code 1 = failure)
         run: zsh Scripts/run_tests.sh

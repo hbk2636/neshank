@@ -9,7 +9,7 @@ let package = Package(
             name: "NeshankYar",
             path: "Sources/NeshankYar",
             resources: [
-                // بوم آزادِ نقشه (محلی) + Readability/Turndown برای استخراج محتوای صفحه
+                // self-contained mind-map canvas (local) + Readability/Turndown for page extraction
                 .copy("Resources/MindMap"),
                 .copy("Resources/Extractor")
             ],

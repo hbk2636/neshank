@@ -141,7 +141,7 @@ Sources/NeshankYar/
                   Designs/ — Aurora · Focus · Dashboard · Atlas · Orbit shells
   Resources/      MindMap/canvas.html (offline, self-contained), Extractor/ (Readability, Turndown)
 Scripts/          build_app.sh (app + ICNS + DMG), run_tests.sh
-docs/             design specs & phase reports (mind-map, downloader)
+docs/             feature guides & architecture (mind map, video downloader)
 ```
 
 ## 🧪 Tests
